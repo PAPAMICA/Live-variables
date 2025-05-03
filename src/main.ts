@@ -14,6 +14,7 @@ import {
 	stringifyIfObj,
 	htmlEscapeNewLine,
 	getNewLinesFromHtmlEscaping,
+	highlightText,
 } from './utils';
 import QueryModal from './QueryModal';
 import {
@@ -76,7 +77,12 @@ export default class LiveVariable extends Plugin {
 					false,
 					(property) => {
 						editor.replaceSelection(
-							`<span query="get(${property.key})"></span>${property.value}<span type="end"></span>\n`
+							`<span query="get(${
+								property.key
+							})"></span>${highlightText(
+								property.value,
+								this.settings
+							)}<span type="end"></span>\n`
 						);
 						new Notice(`Variable ${property.key} inserted`);
 					},
@@ -95,7 +101,12 @@ export default class LiveVariable extends Plugin {
 					true,
 					(property) => {
 						editor.replaceSelection(
-							`<span query="get(${property.key})"></span>${property.value}<span type="end"></span>\n`
+							`<span query="get(${
+								property.key
+							})"></span>${highlightText(
+								property.value,
+								this.settings
+							)}<span type="end"></span>\n`
 						);
 						new Notice(`Variable ${property.key} inserted`);
 					},
@@ -251,7 +262,8 @@ export default class LiveVariable extends Plugin {
 				const query = getNewLinesFromHtmlEscaping(escapedQuery);
 				const value = tryComputeValueFromQuery(
 					query,
-					this.vaultProperties
+					this.vaultProperties,
+					this.settings
 				);
 				if (value !== undefined) {
 					data = data.replace(
@@ -287,7 +299,8 @@ export default class LiveVariable extends Plugin {
 				const query = getNewLinesFromHtmlEscaping(escapedQuery);
 				const value = tryComputeValueFromQuery(
 					query,
-					this.vaultProperties
+					this.vaultProperties,
+					this.settings
 				);
 				if (value !== undefined) {
 					data = data.replace(

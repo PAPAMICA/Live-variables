@@ -114,7 +114,7 @@ export const QueryPredefinedSum: FC<QueryPredefinedSumProps> = ({
 			{args.map((arg, index) => {
 				return (
 					<Setting
-						className="query-modal-sub-setting-item"
+						className="sub-setting-item"
 						key={index + 1}
 						name={`Variable ${index + 1}`}
 						desc={`preview value: ${vaultProperties.getPropertyPreview(

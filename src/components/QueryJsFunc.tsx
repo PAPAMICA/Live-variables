@@ -226,8 +226,8 @@ export const QueryJsFunc = forwardRef<JsFuncRef, QueryJsFuncProps>(
 		return (
 			<>
 				<div>
-					<div className="query-modal-sub-setting-item">
-						<div className="setting-item-name query-modal-sub-setting-item-name">
+					<div className="sub-setting-item">
+						<div className="setting-item-name sub-setting-item-name">
 							Custom JS Function
 						</div>
 						<div className="code-editor-container">
@@ -257,7 +257,7 @@ export const QueryJsFunc = forwardRef<JsFuncRef, QueryJsFuncProps>(
 						</div>
 					</div>
 					<Setting
-						className="query-modal-sub-setting-item"
+						className="sub-setting-item"
 						name="Save Function"
 						desc="Save function for re-use ?"
 					>
@@ -269,7 +269,7 @@ export const QueryJsFunc = forwardRef<JsFuncRef, QueryJsFuncProps>(
 					</Setting>
 					{saveChecked && (
 						<Setting
-							className="query-modal-sub-setting-item"
+							className="sub-setting-item"
 							name="Function name"
 							desc="Give it a name"
 						>
@@ -309,7 +309,7 @@ export const QueryJsFunc = forwardRef<JsFuncRef, QueryJsFuncProps>(
 				{vars.map(([name, val], index) => {
 					return (
 						<Setting
-							className="query-modal-sub-setting-item"
+							className="sub-setting-item"
 							key={index + 1}
 							name={`Variable ${args[index]}`}
 							desc={`preview value: ${vaultProperties.getPropertyPreview(

@@ -5,7 +5,7 @@ import { stringifyIfObj, trancateString } from './utils';
 import { Property } from './main';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Properties = Record<string, any> | undefined;
+export type Properties = Record<string, any> | number | string | undefined;
 
 export default class VaultProperties {
 	private app: App;
@@ -67,7 +67,7 @@ export default class VaultProperties {
 	}
 
 	getLocalProperty(key: string) {
-		return this.localProperties?.[key];
+		return this.getLocalValueByPath(this.localProperties, key);
 	}
 
 	getProperty(path: string) {
@@ -82,11 +82,26 @@ export default class VaultProperties {
 	}
 
 	private getValueByPath(obj: Properties, path: string): Properties {
-		const keys = path.split('/'); // Split path into keys
-		let result = obj;
+		const isFolder = !path.contains('.md');
+		const keys: string[] = [];
+		if (isFolder) {
+			keys.push(...path.split('/'));
+		} else {
+			const [fileTreePath, propertyPath] = path.split('.md');
+			if (fileTreePath) keys.push(...(fileTreePath + '.md').split('/'));
+			if (propertyPath) keys.push(...propertyPath.slice(1).split('.'));
+		}
+		return this.traversePath(obj, keys);
+	}
 
+	private traversePath(obj: Properties, keys: string[]) {
+		let result = obj;
 		for (const key of keys) {
-			if (result && result[key] !== undefined) {
+			if (
+				result &&
+				typeof result === 'object' &&
+				result[key] !== undefined
+			) {
 				result = result[key]; // Traverse into the next level
 			} else {
 				return undefined; // Return undefined if the path is not valid
@@ -94,6 +109,14 @@ export default class VaultProperties {
 		}
 
 		return result; // Return the value at the final path
+	}
+
+	private getLocalValueByPath(
+		localProperties: Properties,
+		path: string
+	): Properties {
+		const keys = path.split('.'); // Split path into keys
+		return this.traversePath(localProperties, keys);
 	}
 
 	getAllVariableKeys() {
@@ -107,8 +130,10 @@ export default class VaultProperties {
 		}));
 	}
 
-
-	findLocalPropertiesWithPathContaining(file: TFile, searchPath: string): Property[] {
+	findLocalPropertiesWithPathContaining(
+		file: TFile,
+		searchPath: string
+	): Property[] {
 		return this.findLocalPathsContaining(searchPath).map((key) => ({
 			key,
 			value: stringifyIfObj(this.getProperty(key)),
@@ -119,9 +144,7 @@ export default class VaultProperties {
 		if (searchPath.length === 0) {
 			return this.getLocalKeys();
 		}
-		return this.getLocalKeys().filter((path) =>
-			path.contains(searchPath)
-		);
+		return this.getLocalKeys().filter((path) => path.contains(searchPath));
 	}
 
 	findPathsContaining(searchPath: string): string[] {
@@ -143,7 +166,7 @@ export default class VaultProperties {
 	}
 
 	updateLocalKeysAndAllVariableKeys() {
-		this.localKeys = this.getAllPaths(this.getLocalProperties());
+		this.localKeys = this.getAllPaths(this.getLocalProperties(), '', true);
 		this.localKeysAndAllVariableKeys = [
 			...this.localKeys,
 			...this.getAllPaths(this.properties),
@@ -158,20 +181,28 @@ export default class VaultProperties {
 		return this.localKeys;
 	}
 
-	private getAllPaths(obj: Properties, parentPath = ''): string[] {
+	private getAllPaths(
+		obj: Properties,
+		parentPath = '',
+		local?: boolean
+	): string[] {
+		const isNestedProperty = parentPath.contains('.md/') || local;
+		const separator = isNestedProperty ? '.' : '/';
 		let paths: string[] = [];
 
 		for (const [key, value] of Object.entries(obj ?? {})) {
 			// Create the full path for the current key
-			const fullPath = parentPath ? `${parentPath}/${key}` : key;
+			const fullPath = parentPath
+				? `${parentPath}${separator}${key}`
+				: key;
+
 			paths.push(fullPath);
 
 			if (typeof value === 'object') {
 				// If it's a folder, recurse deeper
-				paths = [...paths, ...this.getAllPaths(value, fullPath)];
+				paths = [...paths, ...this.getAllPaths(value, fullPath, local)];
 			}
 		}
-
 		return paths;
 	}
 

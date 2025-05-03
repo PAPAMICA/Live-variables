@@ -25,6 +25,7 @@ interface SettingComponent extends FC<SettingProps> {
 	Search: FC<SettingSearchProps>;
 	ExtraButton: FC<SettingExtraButtonProps>;
 	Toggle: FC<SettingToggleProps>;
+	Checkbox: FC<SettingCheckboxProps>;
 }
 
 const Setting: SettingComponent = ({
@@ -114,6 +115,43 @@ Setting.Dropdown = ({ options = {}, onChange, value, disabled = false }) => {
 				);
 			})}
 		</select>
+	);
+};
+
+interface SettingCheckboxProps {
+	checked?: boolean;
+	onChange?: (checked: boolean) => void;
+	label?: string;
+	disabled?: boolean;
+}
+
+Setting.Checkbox = ({
+	checked = false,
+	onChange = () => {},
+	label = '',
+	disabled = false,
+}: SettingCheckboxProps) => {
+	const handleChange = () => {
+		if (!disabled) {
+			const newChecked = !checked;
+			onChange(newChecked);
+		}
+	};
+
+	return (
+		<div
+			className={`checkbox-container ${checked ? 'is-enabled' : ''}`}
+			onClick={handleChange}
+		>
+			<input
+				type="checkbox"
+				checked={checked}
+				disabled={disabled}
+				onChange={(e) => {
+					e.stopPropagation();
+				}}
+			/>
+		</div>
 	);
 };
 

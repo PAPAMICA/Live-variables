@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import Setting from './obsidian-components/Setting';
-import { stringifyIfObj, trancateString } from 'src/utils';
+import { removeHighlight, stringifyIfObj, trancateString } from 'src/utils';
 import { tryComputeValueFromQuery, VarQuery } from 'src/VariableQueryParser';
 import QueryModal from 'src/QueryModal';
 import { TFile } from 'obsidian';
@@ -55,7 +55,7 @@ const QueryModalForm: React.FC<QueryModalFormProperties> = ({
 	const DEFAULT_QUERY_FUNCTION = 'get';
 	const editMode = initQuery !== undefined;
 	const [queryFunc, setQueryFunc] = useState<string>(DEFAULT_QUERY_FUNCTION);
-	const [value, setValue] = useState<string | undefined>(undefined);
+	const [value, setValue] = useState<string | number | undefined>(undefined);
 	const [queryFuncOptions, setQueryFuncOptions] = useState<
 		Record<string, FuncOption>
 	>(defaultQueryFuncOptions);
@@ -65,7 +65,13 @@ const QueryModalForm: React.FC<QueryModalFormProperties> = ({
 	const jsFuncRef = useRef<JsFuncRef>(null);
 
 	const computeValue = async () => {
-		setValue(tryComputeValueFromQuery(query, vaultProperties));
+		setValue(
+			tryComputeValueFromQuery(
+				query,
+				vaultProperties,
+				modal.plugin.settings
+			)
+		);
 	};
 
 	const handleSubmit = () => {
@@ -133,7 +139,7 @@ const QueryModalForm: React.FC<QueryModalFormProperties> = ({
 			return 'No valid value';
 		}
 		return value
-			? trancateString(stringifyIfObj(value), 100)
+			? trancateString(removeHighlight(stringifyIfObj(value)), 100)
 			: 'No valid value';
 	};
 

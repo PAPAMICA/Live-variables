@@ -17,6 +17,8 @@ const LiveVariablesReactSettingTab: FC<LiveVariableReactSettingTabProps> = ({
 		[]
 	);
 
+	const [hightlightText, setHighlightText] = useState<boolean>();
+
 	const columns: TableProps<CustomFunction>['columns'] = [
 		{
 			title: 'Function Name',
@@ -27,6 +29,7 @@ const LiveVariablesReactSettingTab: FC<LiveVariableReactSettingTabProps> = ({
 			title: 'Function Code',
 			dataIndex: 'code',
 			key: 'code',
+			width: 50,
 			render: (code, record) => (
 				<CodeEditor
 					value={code}
@@ -40,6 +43,7 @@ const LiveVariablesReactSettingTab: FC<LiveVariableReactSettingTabProps> = ({
 		},
 		{
 			title: 'Action',
+			fixed: 'right',
 			dataIndex: '',
 			key: 'x',
 			render: (_, record) => (
@@ -62,9 +66,16 @@ const LiveVariablesReactSettingTab: FC<LiveVariableReactSettingTabProps> = ({
 		plugin.saveSettings();
 	};
 
+	const updateHighlightText = (newValue: boolean) => {
+		setHighlightText(newValue);
+		plugin.settings.highlightText = newValue;
+		plugin.saveSettings();
+	};
+
 	const loadDataSource = useCallback(async () => {
 		await plugin.loadSettings();
 		setCustomFunctions(plugin.settings.customFunctions);
+		setHighlightText(plugin.settings.highlightText);
 	}, [deleteFunction, updateFunction]);
 
 	useEffect(() => {
@@ -74,14 +85,21 @@ const LiveVariablesReactSettingTab: FC<LiveVariableReactSettingTabProps> = ({
 	return (
 		<ConfigProvider>
 			<div>
+				<Setting heading name="Live Variables" />
 				<Setting
-					heading
-					name="Live Variables"
+					className="setting-item"
+					name={`Highlight Live Text`}
+					desc="Add highlighting style to inserted live variables. This will be applied only of the live text has no markdown styling."
 					style={{
 						borderBottom:
-							'1px solid var(--background-modifier-border)',
+							'0.5px solid var(--background-modifier-border)',
 					}}
-				/>
+				>
+					<Setting.Checkbox
+						checked={hightlightText}
+						onChange={updateHighlightText}
+					/>
+				</Setting>
 				<div className="setting-item-info" style={{ marginTop: 10 }}>
 					<div className="setting-item-name">Custom JS Functions</div>
 					<div className="setting-item-description">
