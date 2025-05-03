@@ -69,7 +69,7 @@ export const QueryGet: FC<QueryGetProps> = ({
 	return (
 		<>
 			<Setting
-				className="query-modal-sub-setting-item"
+				className="sub-setting-item"
 				name={`Variable:`}
 				desc={`preview value: ${vaultProperties.getPropertyPreview(
 					arg

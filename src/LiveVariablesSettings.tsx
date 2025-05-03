@@ -11,10 +11,12 @@ export interface CustomFunction {
 
 export interface LiveVariablesSettings {
 	customFunctions: CustomFunction[];
+	highlightText: boolean;
 }
 
 export const DEFAULT_SETTINGS: LiveVariablesSettings = {
 	customFunctions: [],
+	highlightText: true
 };
 
 export class LiveVariablesSettingTab extends PluginSettingTab {

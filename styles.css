@@ -26,9 +26,8 @@ If your plugin does not need CSS, delete this file.
 	border-bottom: solid;
 }
 
-
 .ant-dropdown-menu-item-selected .ant-dropdown-menu-title-content {
-    color: var(--color-purple);
+	color: var(--color-purple);
 	font-weight: normal;
 	display: block;
 	min-height: 1.2em;
@@ -47,23 +46,39 @@ If your plugin does not need CSS, delete this file.
 	white-space: nowrap;
 }
 
-.query-modal-sub-setting-item-name {
+.sub-setting-item-name {
+	font-size: var(--font-ui-small);
+}
+.sub-setting-item-name {
 	font-size: var(--font-ui-small);
 }
 
-.query-modal-sub-setting-item .setting-item-name{
+.sub-setting-item .setting-item-name {
 	font-size: var(--font-ui-small);
 }
 
-.query-modal-sub-setting-item {
+.sub-setting-item {
 	padding-left: 5px;
 	border-top: none;
 }
 
-.code-editor-container{
+.code-editor-container {
 	margin-top: 5px;
 }
 
-.query-modal-error{
+.query-modal-error {
 	color: var(--text-error);
+}
+
+:root {
+	--lv-highlight-color: #000;
+}
+
+.lv-live-text {
+	background-color: var(--text-selection);
+	border-bottom: 2px solid var(--color-purple);
+	mix-blend-mode: var(--highlight-mix-blend-mode);
+	padding: 0 4px;
+	border-radius: 4px;
+	/* font-weight: bold; */
 }

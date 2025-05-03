@@ -1,5 +1,7 @@
 import { App, TFile, TFolder } from 'obsidian';
 import { minify } from 'terser';
+import { marked } from 'marked';
+import { LiveVariablesSettings } from './LiveVariablesSettings';
 
 export const getValueByPath = (obj: any, path: string): any => {
 	const keys = path.split(/\.|\[|\]/).filter(Boolean);
@@ -198,4 +200,69 @@ export const htmlEscapeNewLine = (text: string) => {
 
 export const getNewLinesFromHtmlEscaping = (htmlEscapedText: string) => {
 	return htmlEscapedText.replaceAll('&#10;', '\n');
+};
+
+export const highlightText = (
+	text: string | number,
+	settings?: LiveVariablesSettings
+): string | number => {
+	if (
+		settings &&
+		settings.highlightText &&
+		!containsMarkdown(text.toString())
+	) {
+		return `<span class="lv-live-text">${text}</span>`;
+	}
+	return text;
+};
+
+export const removeHighlight = (text: string): string => {
+	const re = /<span class="lv-live-text">(.*)<\/span>/g;
+	const match = re.exec(text);
+	if (match) {
+		return match[1];
+	}
+	return text;
+};
+
+export const containsMarkdown = (value: string): boolean => {
+	const tokenTypes: string[] = [];
+
+	// https://marked.js.org/using_pro#tokenizer
+	marked(value, {
+		walkTokens: (token) => {
+			tokenTypes.push(token.type);
+		},
+	});
+
+	const isMarkdown =
+		[
+			'space',
+			'code',
+			'fences',
+			'heading',
+			'hr',
+			'link',
+			'blockquote',
+			'list',
+			'html',
+			'def',
+			'table',
+			'lheading',
+			'escape',
+			'tag',
+			'reflink',
+			'strong',
+			'codespan',
+			'url',
+			'em',
+		].some((tokenType) => tokenTypes.includes(tokenType)) ||
+		isWikiLink(value);
+
+	return isMarkdown;
+};
+
+export const isWikiLink = (text: string): boolean => {
+	const wikiLinkPattern = /\[\[(.*?)\]\]|\[(.*?)\]\((.*?)\)/;
+	return wikiLinkPattern.test(text);
 };

@@ -133,12 +133,12 @@ export const QueryCodeBlock: FC<QueryCodeBlockProps> = ({
 	return (
 		<>
 			<div>
-				<div className="query-modal-sub-setting-item">
-					<div className="setting-item-name query-modal-sub-setting-item-name">
+				<div className="sub-setting-item">
+					<div className="setting-item-name sub-setting-item-name">
 						Code Block
 					</div>
 					<Setting
-						className="query-modal-sub-setting-item"
+						className="sub-setting-item"
 						name="Code language"
 					>
 						<Setting.Text
@@ -162,7 +162,7 @@ export const QueryCodeBlock: FC<QueryCodeBlockProps> = ({
 			{vars.map(([name, val], index) => {
 				return (
 					<Setting
-						className="query-modal-sub-setting-item"
+						className="sub-setting-item"
 						key={index + 1}
 						name={`Variable: ${name}`}
 						desc={`preview value: ${vaultProperties.getPropertyPreview(

@@ -1,8 +1,14 @@
 import { App, TFile } from 'obsidian';
 import { assertNoUndefinedElems } from './assertions';
-import { checkArrayTypes, getValueByPath, stringifyIfObj } from './utils';
+import {
+	checkArrayTypes,
+	getValueByPath,
+	highlightText,
+	stringifyIfObj,
+} from './utils';
 import { unescape } from 'he';
-import VaultProperties from './VaultProperties';
+import VaultProperties, { Properties } from './VaultProperties';
+import { LiveVariablesSettings } from './LiveVariablesSettings';
 
 export const getVariableValue = (id: string, context: LiveVariablesContext) => {
 	if (id === '') return undefined;
@@ -111,29 +117,23 @@ const parseCodeBlockArgs = (argsStr: string): string[] => {
 	}
 };
 
-export const computeValueFromQuery = (
-	query: string,
-	vaultProperties: VaultProperties
-) => {
-	const varQuery = parseQuery(query);
-	return computeValue(varQuery, vaultProperties);
-};
-
 export const tryComputeValueFromQuery = (
 	query: string,
-	vaultProperties: VaultProperties
+	vaultProperties: VaultProperties,
+	settings: LiveVariablesSettings
 ) => {
 	try {
 		const varQuery = parseQuery(query);
-		return computeValue(varQuery, vaultProperties);
+		return highlightText(computeValue(varQuery, vaultProperties), settings);
 	} catch (e) {
+		console.error(e);
 		return undefined;
 	}
 };
 
 export const computeValue = (
 	varQuery: VarQuery,
-	vaultProperties: VaultProperties
+	vaultProperties: VaultProperties,
 ) => {
 	switch (varQuery.func) {
 		case Functions.SUM:
@@ -155,25 +155,19 @@ export enum Functions {
 	CODE_BLOCK = 'codeBlock',
 }
 
-export const getFunc = (
-	args: string[],
-	vaultProperties: VaultProperties
-) => {
+export const getFunc = (args: string[], vaultProperties: VaultProperties) => {
 	const values = args.map((id) => vaultProperties.getProperty(id));
 	return values[0] ?? '';
 };
 
-export const sumFunc = (
-	args: string[],
-	vaultProperties: VaultProperties
-) => {
+export const sumFunc = (args: string[], vaultProperties: VaultProperties) => {
 	const values = args.map((id) => vaultProperties.getProperty(id));
 	const valueType = checkArrayTypes(values);
 	const neutralValue = valueType === 'number' ? 0 : '';
 	return values.reduce(
-		(a, b) =>
+		(a: Properties, b: Properties) =>
 			valueType === 'number'
-				? a + b
+				? (a as number) + (b as number)
 				: stringifyIfObj(a) + stringifyIfObj(b),
 		neutralValue
 	);
@@ -211,7 +205,10 @@ export const codeBlockFunc = (
 			.slice(2)
 			.map((id) => vaultProperties.getProperty(id));
 		values.forEach((value) => {
-			codeBlock = codeBlock.replace(/\{\{(.*?)\}\}/, value);
+			codeBlock = codeBlock.replace(
+				/\{\{(.*?)\}\}/,
+				value?.toString() ?? ''
+			);
 		});
 		const computedValue = `\n\`\`\`${lang}\n${codeBlock}\n\`\`\`\n`;
 		return unescape(computedValue);
