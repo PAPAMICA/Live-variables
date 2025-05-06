@@ -55,8 +55,8 @@ export default class VaultProperties {
 	private getMarkdownProperties(
 		markdownAbsoluteFilePath: string
 	): Properties {
-		const vaultPath = this.vaultBasePath + '/';
-		const markdownFilePath = markdownAbsoluteFilePath.slice(
+		const vaultPath = path.posix.join(...this.vaultBasePath.split(path.sep)) + '/';
+		const markdownFilePath = path.posix.join(...markdownAbsoluteFilePath.split(path.sep)).slice(
 			vaultPath.length
 		);
 		const file = this.app.vault.getFileByPath(markdownFilePath);
