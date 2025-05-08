@@ -97,7 +97,7 @@ https://github.com/user-attachments/assets/5affac22-1b86-4bf8-9993-15b9b023e4e8
 
 - User friendly form for inserting queries: 
 The form adds the arguments input dynamically and allows you the prview values of each argument and the value of the resulting query.
-<img width="560" alt="query-form" src="https://github.com/user-attachments/assets/ebfe1a8c-5d62-47e3-bc6f-02cf565d5ef0" />
+<img width="400" alt="query-form" src="https://github.com/user-attachments/assets/ebfe1a8c-5d62-47e3-bc6f-02cf565d5ef0" />
 
 ---
 
