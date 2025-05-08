@@ -20,15 +20,13 @@ Your sponsorship helps:
 ---
 ### Table of Contents
 **[Features](#-features)**<br>
-**[What's New in v2?](#-whats-new-in-v2)**<br>
 **[What's New in v2.1.0?](#-whats-new-in-v210)**<br>
+**[What's New in v2?](#-whats-new-in-v2)**<br>
 **[Demo](#-demo)**<br>
 **[Contributing](#-contributing)**<br>
 **[License](#-contributing)**<br>
 
 ---
-
-
 ## 🚀 Features  
 - **Dynamic Variables**: Define in frontmatter, update everywhere instantly.  
 - **Code Block Magic**: Execute queries & transform data using code blocks.  
@@ -38,6 +36,26 @@ Your sponsorship helps:
 - **Custom Function Library**: Save frequent scripts (e.g., calculateTax) and call them by name!
 - **Form Interface**: Insert queries visually—no coding skills needed!  
 - **Cross-Note Sync**: Share variables across your entire vault.  
+
+---
+## 🆕 What's New in v2.1.0?  
+### ✏️ Inline Editing
+Edit existing Live Variables references without reinserting them! Just place your cursor on any variable reference and run `Live Variables: Query variables` to modify it in-place.
+
+### 🔦 Smart Highlighting
+Instantly identify dynamic content with subtle highlights that:
+- Work in both light/dark modes
+- Preserve Markdown formatting (disables highlight when styling is present)
+- Help maintain visual hierarchy
+
+This feature can be is enabled by default and can be disabled in the settings.
+
+**Formatting Awareness:**  
+`**boldVar**` → No highlight to preserve bold style  
+`plainVar` → Highlighted for easy identification
+
+### 🎥 Demo for two features
+https://github.com/user-attachments/assets/c698453e-6e08-4793-b542-47fc39d9deeb
 
 ---
 
@@ -80,27 +98,6 @@ https://github.com/user-attachments/assets/5affac22-1b86-4bf8-9993-15b9b023e4e8
 - User friendly form for inserting queries: 
 The form adds the arguments input dynamically and allows you the prview values of each argument and the value of the resulting query.
 <img width="560" alt="query-form" src="https://github.com/user-attachments/assets/ebfe1a8c-5d62-47e3-bc6f-02cf565d5ef0" />
-
----
-
-## 🆕 What's New in v2.1.0?  
-### ✏️ Inline Editing
-Edit existing Live Variables references without reinserting them! Just place your cursor on any variable reference and run `Live Variables: Query variables` to modify it in-place.
-
-### 🔦 Smart Highlighting
-Instantly identify dynamic content with subtle highlights that:
-- Work in both light/dark modes
-- Preserve Markdown formatting (disables highlight when styling is present)
-- Help maintain visual hierarchy
-
-This feature can be is enabled by default and can be disabled in the settings.
-
-**Formatting Awareness:**  
-`**boldVar**` → No highlight to preserve bold style  
-`plainVar` → Highlighted for easy identification
-
-### 🎥 Demo for two features
-https://github.com/user-attachments/assets/c698453e-6e08-4793-b542-47fc39d9deeb
 
 ---
 
