@@ -1,11 +1,11 @@
-import { App, FileSystemAdapter, TFile } from 'obsidian';
+import { App, FileSystemAdapter, FrontMatterCache, TFile } from 'obsidian';
 import * as fs from 'fs';
 import * as path from 'path';
 import { stringifyIfObj, trancateString } from './utils';
-import { Property } from './main';
+import { Property } from './property-selection-modal';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type Properties = Record<string, any> | number | string | undefined;
+export type Properties = Record<string, any>;
 
 export default class VaultProperties {
 	private app: App;
@@ -22,6 +22,24 @@ export default class VaultProperties {
 		).getBasePath();
 		this.updateVaultProperties();
 	}
+
+	propertyChanged = (newProperties: FrontMatterCache | undefined) => {
+		if (
+			Object.entries(this.localProperties ?? {}).length !==
+			Object.entries(newProperties ?? {}).length
+		) {
+			return true;
+		}
+		for (const [newPropKey, newPropVal] of Object.entries(
+			newProperties ?? {}
+		)) {
+			const currentPropVal = this.localProperties?.[newPropKey];
+			if (JSON.stringify(currentPropVal) !== JSON.stringify(newPropVal)) {
+				return true;
+			}
+		}
+		return false;
+	};
 
 	private updateVaultProperties() {
 		this.properties = this.getDirectoryTree(this.vaultBasePath);
@@ -55,10 +73,11 @@ export default class VaultProperties {
 	private getMarkdownProperties(
 		markdownAbsoluteFilePath: string
 	): Properties {
-		const vaultPath = path.posix.join(...this.vaultBasePath.split(path.sep)) + '/';
-		const markdownFilePath = path.posix.join(...markdownAbsoluteFilePath.split(path.sep)).slice(
-			vaultPath.length
-		);
+		const vaultPath =
+			path.posix.join(...this.vaultBasePath.split(path.sep)) + '/';
+		const markdownFilePath = path.posix
+			.join(...markdownAbsoluteFilePath.split(path.sep))
+			.slice(vaultPath.length);
 		const file = this.app.vault.getFileByPath(markdownFilePath);
 		if (file) {
 			return this.app.metadataCache.getFileCache(file)?.frontmatter ?? {};
@@ -91,7 +110,7 @@ export default class VaultProperties {
 			if (fileTreePath) keys.push(...(fileTreePath + '.md').split('/'));
 			if (propertyPath) keys.push(...propertyPath.slice(1).split('.'));
 		}
-		return this.traversePath(obj, keys);
+		return this.traversePath(obj, keys) ?? {};
 	}
 
 	private traversePath(obj: Properties, keys: string[]) {
@@ -116,7 +135,7 @@ export default class VaultProperties {
 		path: string
 	): Properties {
 		const keys = path.split('.'); // Split path into keys
-		return this.traversePath(localProperties, keys);
+		return this.traversePath(localProperties, keys) ?? {};
 	}
 
 	getAllVariableKeys() {
