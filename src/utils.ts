@@ -207,6 +207,7 @@ export const highlightText = (
 	settings?: LiveVariablesSettings
 ): string | number => {
 	if (
+		text &&
 		settings &&
 		settings.highlightText &&
 		!containsMarkdown(text.toString())

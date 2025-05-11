@@ -1,7 +1,6 @@
 import { Editor, MarkdownView, Notice } from 'obsidian';
 import QueryModal from 'src/QueryModal';
-import { getNewLinesFromHtmlEscaping, htmlEscapeNewLine } from 'src/utils';
-import { unescape } from 'he';
+import { escape, unescape } from 'he';
 import LiveVariables from 'src/main';
 
 const queryVariablesCommand = (plugin: LiveVariables) => ({
@@ -30,7 +29,7 @@ const queryVariablesCommand = (plugin: LiveVariables) => ({
 			}
 			const match = re.exec(lines[i]);
 			if (match) {
-				query = getNewLinesFromHtmlEscaping(match[1]);
+				query = unescape(match[1]);
 				refStartLine = i;
 				// Get start position of match[1]
 				refStartCh = match.index;
@@ -63,7 +62,7 @@ const queryVariablesCommand = (plugin: LiveVariables) => ({
 					);
 				}
 				editor.replaceSelection(
-					`<span query="${htmlEscapeNewLine(
+					`<span query="${escape(
 						query
 					)}"></span>${unescape(value)}<span type="end"></span>\n`
 				);

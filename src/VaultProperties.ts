@@ -5,7 +5,7 @@ import { stringifyIfObj, trancateString } from './utils';
 import { Property } from './property-selection-modal';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type Properties = Record<string, any>;
+export type Properties = Record<string, any> | string | number | undefined;
 
 export default class VaultProperties {
 	private app: App;
@@ -33,9 +33,14 @@ export default class VaultProperties {
 		for (const [newPropKey, newPropVal] of Object.entries(
 			newProperties ?? {}
 		)) {
-			const currentPropVal = this.localProperties?.[newPropKey];
-			if (JSON.stringify(currentPropVal) !== JSON.stringify(newPropVal)) {
-				return true;
+			if (typeof this.localProperties === 'object') {
+				const currentPropVal = this.localProperties?.[newPropKey];
+				if (
+					JSON.stringify(currentPropVal) !==
+					JSON.stringify(newPropVal)
+				) {
+					return true;
+				}
 			}
 		}
 		return false;
@@ -85,11 +90,11 @@ export default class VaultProperties {
 		return {};
 	}
 
-	getLocalProperty(key: string) {
+	getLocalProperty(key: string): Properties {
 		return this.getLocalValueByPath(this.localProperties, key);
 	}
 
-	getProperty(path: string) {
+	getProperty(path: string): Properties {
 		return (
 			this.getLocalProperty(path) ??
 			this.getValueByPath(this.properties, path)

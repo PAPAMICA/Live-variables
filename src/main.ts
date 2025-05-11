@@ -1,6 +1,6 @@
 import { Notice, Plugin, TFile } from 'obsidian';
 import { tryComputeValueFromQuery } from './VariableQueryParser';
-import { stringifyIfObj, getNewLinesFromHtmlEscaping } from './utils';
+import { stringifyIfObj } from './utils';
 import {
 	DEFAULT_SETTINGS,
 	LiveVariablesSettings,
@@ -12,6 +12,7 @@ import insertGlobalVariable from './commands/insert-global-variable';
 import insertLocalVariableCommand from './commands/insert-local-variable';
 import metadataCacheChangeEvent from './events/metadata-cache-change';
 import activeLeafChangeEvent from './events/active-leaf-change';
+import { unescape } from 'he';
 
 export default class LiveVariables extends Plugin {
 	public settings: LiveVariablesSettings;
@@ -74,7 +75,7 @@ export default class LiveVariables extends Plugin {
 		this.app.vault.process(file, (data) => {
 			[...data.matchAll(re)].forEach((match) => {
 				const escapedQuery = match[1];
-				const query = getNewLinesFromHtmlEscaping(escapedQuery);
+				const query = unescape(escapedQuery);
 				const value = tryComputeValueFromQuery(
 					query,
 					this.vaultProperties,
@@ -111,7 +112,7 @@ export default class LiveVariables extends Plugin {
 		this.app.vault.process(file, (data) => {
 			[...data.matchAll(re)].forEach((match) => {
 				const escapedQuery = match[1];
-				const query = getNewLinesFromHtmlEscaping(escapedQuery);
+				const query = unescape(escapedQuery);
 				const value = tryComputeValueFromQuery(
 					query,
 					this.vaultProperties,
