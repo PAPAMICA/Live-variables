@@ -1,6 +1,6 @@
 import { Notice, Plugin, TFile } from 'obsidian';
 import { tryComputeValueFromQuery } from './VariableQueryParser';
-import { stringifyIfObj } from './utils';
+import { stringifyIfObj, trancateString } from './utils';
 import {
 	DEFAULT_SETTINGS,
 	LiveVariablesSettings,
@@ -60,7 +60,12 @@ export default class LiveVariables extends Plugin {
 						match[0],
 						`<span query="get(${key})"></span><span style="color: red">Live Variable Error</span><span type="end"></span>`
 					);
-					new Notice(`Failed to get value of variable ${key}`);
+					new Notice(
+						`Failed to get value of variable ${trancateString(
+							key,
+							50
+						)}`
+					);
 				}
 			});
 			return data;
@@ -96,7 +101,7 @@ export default class LiveVariables extends Plugin {
 						)}<span type="end"></span>`
 					);
 					new Notice(
-						`Failed to get value of query "${escapedQuery}"`
+						`Failed to get value of query "${trancateString(escapedQuery, 50)}"`
 					);
 				}
 			});
@@ -133,7 +138,7 @@ export default class LiveVariables extends Plugin {
 						)}<span type="end"></span>`
 					);
 					new Notice(
-						`Failed to get value of query "${escapedQuery}"`
+						`Failed to get value of query "${trancateString(escapedQuery, 50)}"`
 					);
 				}
 			});
