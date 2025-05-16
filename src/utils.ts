@@ -267,3 +267,10 @@ export const isWikiLink = (text: string): boolean => {
 	const wikiLinkPattern = /\[\[(.*?)\]\]|\[(.*?)\]\((.*?)\)/;
 	return wikiLinkPattern.test(text);
 };
+
+export const addNewLineAtTheStartIfStartingWithMarkdown = (value: string) => {
+	if (/^\s*-\s/.test(value)) {
+		return '\n' + value;
+	}
+	return value;
+};

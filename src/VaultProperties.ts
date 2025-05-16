@@ -140,7 +140,7 @@ export default class VaultProperties {
 		path: string
 	): Properties {
 		const keys = path.split('.'); // Split path into keys
-		return this.traversePath(localProperties, keys) ?? {};
+		return this.traversePath(localProperties, keys);
 	}
 
 	getAllVariableKeys() {

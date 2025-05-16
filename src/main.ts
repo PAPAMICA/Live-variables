@@ -101,7 +101,10 @@ export default class LiveVariables extends Plugin {
 						)}<span type="end"></span>`
 					);
 					new Notice(
-						`Failed to get value of query "${trancateString(escapedQuery, 50)}"`
+						`Failed to get value of query "${trancateString(
+							escapedQuery,
+							50
+						)}"`
 					);
 				}
 			});
@@ -138,7 +141,10 @@ export default class LiveVariables extends Plugin {
 						)}<span type="end"></span>`
 					);
 					new Notice(
-						`Failed to get value of query "${trancateString(escapedQuery, 50)}"`
+						`Failed to get value of query "${trancateString(
+							escapedQuery,
+							50
+						)}"`
 					);
 				}
 			});

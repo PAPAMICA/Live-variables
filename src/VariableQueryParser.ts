@@ -1,6 +1,7 @@
 import { App, TFile } from 'obsidian';
 import { assertNoUndefinedElems } from './assertions';
 import {
+	addNewLineAtTheStartIfStartingWithMarkdown,
 	checkArrayTypes,
 	getValueByPath,
 	highlightText,
@@ -124,7 +125,12 @@ export const tryComputeValueFromQuery = (
 ) => {
 	try {
 		const varQuery = parseQuery(query);
-		return highlightText(computeValue(varQuery, vaultProperties), settings);
+		return highlightText(
+			addNewLineAtTheStartIfStartingWithMarkdown(
+				computeValue(varQuery, vaultProperties)
+			),
+			settings
+		);
 	} catch (e) {
 		console.error(e);
 		return undefined;
@@ -133,7 +139,7 @@ export const tryComputeValueFromQuery = (
 
 export const computeValue = (
 	varQuery: VarQuery,
-	vaultProperties: VaultProperties,
+	vaultProperties: VaultProperties
 ) => {
 	switch (varQuery.func) {
 		case Functions.SUM:

@@ -2,6 +2,7 @@ import { Editor, MarkdownView, Notice } from 'obsidian';
 import QueryModal from 'src/QueryModal';
 import { escape, unescape } from 'he';
 import LiveVariables from 'src/main';
+import { addNewLineAtTheStartIfStartingWithMarkdown } from 'src/utils';
 
 const queryVariablesCommand = (plugin: LiveVariables) => ({
 	id: 'query-variables',
@@ -64,7 +65,9 @@ const queryVariablesCommand = (plugin: LiveVariables) => ({
 				editor.replaceSelection(
 					`<span query="${escape(
 						query
-					)}"></span>${unescape(value)}<span type="end"></span>\n`
+					)}"></span>${addNewLineAtTheStartIfStartingWithMarkdown(
+						unescape(value)
+					)}<span type="end"></span>\n`
 				);
 				new Notice(`Query ${edit ? 'Updated' : 'Inserted'}`);
 			}
