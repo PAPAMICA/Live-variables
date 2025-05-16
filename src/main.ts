@@ -8,7 +8,7 @@ import {
 } from './LiveVariablesSettings';
 import VaultProperties from './VaultProperties';
 import queryVariablesCommand from './commands/query-variables';
-import insertGlobalVariable from './commands/insert-global-variable';
+import insertGlobalVariableCommand from './commands/insert-global-variable';
 import insertLocalVariableCommand from './commands/insert-local-variable';
 import metadataCacheChangeEvent from './events/metadata-cache-change';
 import activeLeafChangeEvent from './events/active-leaf-change';
@@ -27,7 +27,7 @@ export default class LiveVariables extends Plugin {
 		this.registerEvent(metadataCacheChangeEvent(this));
 
 		this.addCommand(insertLocalVariableCommand(this));
-		this.addCommand(insertGlobalVariable(this));
+		this.addCommand(insertGlobalVariableCommand(this));
 		this.addCommand(queryVariablesCommand(this));
 
 		this.addSettingTab(new LiveVariablesSettingTab(this.app, this));

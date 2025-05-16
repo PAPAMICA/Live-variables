@@ -6,7 +6,7 @@ import {
 	highlightText,
 } from 'src/utils';
 
-const insertGlobalVariable = (plugin: LiveVariables) => ({
+const insertGlobalVariableCommand = (plugin: LiveVariables) => ({
 	id: 'insert-global-variable',
 	name: 'Insert variable from another note',
 	editorCallback: (editor: Editor, view: MarkdownView) => {
@@ -30,4 +30,4 @@ const insertGlobalVariable = (plugin: LiveVariables) => ({
 	},
 });
 
-export default insertGlobalVariable;
+export default insertGlobalVariableCommand;
