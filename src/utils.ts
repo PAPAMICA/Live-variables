@@ -207,6 +207,7 @@ export const highlightText = (
 	settings?: LiveVariablesSettings
 ): string | number => {
 	if (
+		text &&
 		settings &&
 		settings.highlightText &&
 		!containsMarkdown(text.toString())
@@ -265,4 +266,11 @@ export const containsMarkdown = (value: string): boolean => {
 export const isWikiLink = (text: string): boolean => {
 	const wikiLinkPattern = /\[\[(.*?)\]\]|\[(.*?)\]\((.*?)\)/;
 	return wikiLinkPattern.test(text);
+};
+
+export const addNewLineAtTheStartIfStartingWithMarkdown = (value: string) => {
+	if (/^\s*-\s/.test(value)) {
+		return '\n' + value;
+	}
+	return value;
 };
