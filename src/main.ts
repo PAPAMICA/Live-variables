@@ -83,10 +83,17 @@ export default class LiveVariables extends Plugin {
 				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 				if (view && view.file === file) {
 					// Force immediate update of all code blocks
-					this.updateCodeBlocksWithVariables(view);
-					
-					// Then trigger a full refresh
-					this.refreshView(file);
+					setTimeout(() => {
+						this.updateCodeBlocksWithVariables(view);
+						// Force a complete refresh of the view
+						if (view.getMode() === 'preview') {
+							view.previewMode.rerender();
+						} else {
+							view.editor.refresh();
+						}
+						// Force a complete refresh of the workspace
+						this.app.workspace.trigger('resize');
+					}, 0);
 				}
 			})
 		);
@@ -101,10 +108,17 @@ export default class LiveVariables extends Plugin {
 				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 				if (view && view.file === file) {
 					// Force immediate update of all code blocks
-					this.updateCodeBlocksWithVariables(view);
-					
-					// Then trigger a full refresh
-					this.refreshView(file);
+					setTimeout(() => {
+						this.updateCodeBlocksWithVariables(view);
+						// Force a complete refresh of the view
+						if (view.getMode() === 'preview') {
+							view.previewMode.rerender();
+						} else {
+							view.editor.refresh();
+						}
+						// Force a complete refresh of the workspace
+						this.app.workspace.trigger('resize');
+					}, 0);
 				}
 			})
 		);
@@ -151,41 +165,8 @@ export default class LiveVariables extends Plugin {
 						}
 					});
 
-					// Create a temporary container to preserve formatting
-					const tempContainer = document.createElement('div');
-					tempContainer.innerHTML = codeBlock.innerHTML;
-					
-					// Find all text nodes that might contain variables
-					const walker = document.createTreeWalker(
-						tempContainer,
-						NodeFilter.SHOW_TEXT,
-						null
-					);
-					
-					let node: Text | null;
-					while ((node = walker.nextNode() as Text)) {
-						let text = node.textContent || '';
-						let modified = false;
-						
-						variables.forEach((variable: string) => {
-							const value = this.vaultProperties.getProperty(variable);
-							if (value !== undefined) {
-								const regex = new RegExp(`${this.settings.variableDelimiters.start}${variable}${this.settings.variableDelimiters.end}`, 'g');
-								const newText = text.replace(regex, this.stringifyValue(value));
-								if (newText !== text) {
-									text = newText;
-									modified = true;
-								}
-							}
-						});
-						
-						if (modified) {
-							node.textContent = text;
-						}
-					}
-					
-					// Update the code block content while preserving formatting
-					codeBlock.innerHTML = tempContainer.innerHTML;
+					// Force update the content
+					codeBlock.textContent = displayCode;
 
 					// Update the copy button handler with the new display code
 					const copyButton = codeBlock.parentElement?.querySelector('.copy-code-button');
@@ -198,9 +179,11 @@ export default class LiveVariables extends Plugin {
 						});
 					}
 
-					// Re-apply syntax highlighting
-					if (codeBlock.classList.contains('hljs')) {
-						codeBlock.classList.remove('hljs');
+					// Force re-apply syntax highlighting
+					const language = codeBlock.className.split(' ').find(cls => cls.startsWith('language-'));
+					if (language) {
+						codeBlock.className = language;
+						// Trigger a re-highlight
 						codeBlock.classList.add('hljs');
 					}
 				}
