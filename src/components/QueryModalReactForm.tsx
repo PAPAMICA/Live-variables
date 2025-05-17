@@ -147,7 +147,7 @@ const QueryModalForm: React.FC<QueryModalFormProperties> = ({
 
 	return (
 		<div style={{ display: 'flex', flexDirection: 'column' }}>
-			<div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+			<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
 				<Setting
 					className="query-modal-setting-item"
 					name={'Query Function'}
@@ -163,14 +163,27 @@ const QueryModalForm: React.FC<QueryModalFormProperties> = ({
 						value={queryFunc}
 					/>
 				</Setting>
-				<Setting.ExtraButton
-					icon={<ReloadOutlined />}
-					ariaLabel="Refresh Variables"
+				<button
+					className="clickable-icon"
+					aria-label="Refresh Variables"
 					onClick={() => {
 						modal.plugin.vaultProperties.updateProperties(modal.file);
 						computeValue();
 					}}
-				/>
+					style={{ 
+						marginLeft: '10px',
+						padding: '4px 8px',
+						display: 'flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+						border: '1px solid var(--background-modifier-border)',
+						borderRadius: '4px',
+						backgroundColor: 'var(--background-primary)',
+						cursor: 'pointer'
+					}}
+				>
+					<ReloadOutlined style={{ fontSize: '16px' }} />
+				</button>
 			</div>
 			{queryFunc === 'get' && (
 				<QueryGet
