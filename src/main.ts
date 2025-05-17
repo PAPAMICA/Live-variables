@@ -150,7 +150,59 @@ export default class LiveVariables extends Plugin {
 							);
 						}
 					});
-					codeBlock.textContent = displayCode;
+
+					// Create a temporary container to preserve formatting
+					const tempContainer = document.createElement('div');
+					tempContainer.innerHTML = codeBlock.innerHTML;
+					
+					// Find all text nodes that might contain variables
+					const walker = document.createTreeWalker(
+						tempContainer,
+						NodeFilter.SHOW_TEXT,
+						null
+					);
+					
+					let node: Text | null;
+					while ((node = walker.nextNode() as Text)) {
+						let text = node.textContent || '';
+						let modified = false;
+						
+						variables.forEach((variable: string) => {
+							const value = this.vaultProperties.getProperty(variable);
+							if (value !== undefined) {
+								const regex = new RegExp(`${this.settings.variableDelimiters.start}${variable}${this.settings.variableDelimiters.end}`, 'g');
+								const newText = text.replace(regex, this.stringifyValue(value));
+								if (newText !== text) {
+									text = newText;
+									modified = true;
+								}
+							}
+						});
+						
+						if (modified) {
+							node.textContent = text;
+						}
+					}
+					
+					// Update the code block content while preserving formatting
+					codeBlock.innerHTML = tempContainer.innerHTML;
+
+					// Update the copy button handler with the new display code
+					const copyButton = codeBlock.parentElement?.querySelector('.copy-code-button');
+					if (copyButton) {
+						copyButton.removeEventListener('click', () => {});
+						copyButton.addEventListener('click', (e) => {
+							e.preventDefault();
+							e.stopPropagation();
+							navigator.clipboard.writeText(displayCode);
+						});
+					}
+
+					// Re-apply syntax highlighting
+					if (codeBlock.classList.contains('hljs')) {
+						codeBlock.classList.remove('hljs');
+						codeBlock.classList.add('hljs');
+					}
 				}
 			}
 		});
