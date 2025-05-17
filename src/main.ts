@@ -72,13 +72,28 @@ export default class LiveVariables extends Plugin {
 		// Register metadata cache change event
 		this.registerEvent(
 			this.app.metadataCache.on('changed', (file) => {
-				// Force refresh of the current view
-				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (view && view.file === file) {
-					view.previewMode.rerender();
-				}
+				this.refreshCurrentView(file);
 			})
 		);
+
+		// Register file change event
+		this.registerEvent(
+			this.app.vault.on('modify', (file: TFile) => {
+				this.refreshCurrentView(file);
+			})
+		);
+	}
+
+	refreshCurrentView(file: TFile) {
+		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+		if (view && view.file === file) {
+			// Force refresh of the current view
+			view.previewMode.rerender();
+			// Also refresh the editor if in source mode
+			if (view.getMode() === 'source') {
+				view.editor.refresh();
+			}
+		}
 	}
 
 	renderVariables(file: TFile) {
