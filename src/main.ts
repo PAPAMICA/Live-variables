@@ -76,14 +76,36 @@ export default class LiveVariables extends Plugin {
 		// Register file change event
 		this.registerEvent(
 			this.app.vault.on('modify', (file: TFile) => {
-				this.refreshView(file);
+				// Update vault properties immediately
+				this.vaultProperties.updateProperties(file);
+				
+				// Get the active view
+				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+				if (view && view.file === file) {
+					// Force immediate update of all code blocks
+					this.updateCodeBlocksWithVariables(view);
+					
+					// Then trigger a full refresh
+					this.refreshView(file);
+				}
 			})
 		);
 
 		// Register metadata cache change event
 		this.registerEvent(
 			this.app.metadataCache.on('changed', (file: TFile) => {
-				this.refreshView(file);
+				// Update vault properties immediately
+				this.vaultProperties.updateProperties(file);
+				
+				// Get the active view
+				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+				if (view && view.file === file) {
+					// Force immediate update of all code blocks
+					this.updateCodeBlocksWithVariables(view);
+					
+					// Then trigger a full refresh
+					this.refreshView(file);
+				}
 			})
 		);
 	}
@@ -105,7 +127,33 @@ export default class LiveVariables extends Plugin {
 
 			// Force a complete refresh of the workspace
 			this.app.workspace.trigger('resize');
+
+			// Update all code blocks with variables
+			this.updateCodeBlocksWithVariables(view);
 		}
+	}
+
+	updateCodeBlocksWithVariables(view: MarkdownView) {
+		const codeBlocks = view.contentEl.querySelectorAll('pre code');
+		codeBlocks.forEach((codeBlock) => {
+			const originalCode = codeBlock.getAttribute('data-original-code');
+			if (originalCode) {
+				const variables = JSON.parse(codeBlock.getAttribute('data-variables') || '[]');
+				if (variables.length > 0) {
+					let displayCode = originalCode;
+					variables.forEach((variable: string) => {
+						const value = this.vaultProperties.getProperty(variable);
+						if (value !== undefined) {
+							displayCode = displayCode.replace(
+								new RegExp(`${this.settings.variableDelimiters.start}${variable}${this.settings.variableDelimiters.end}`, 'g'),
+								this.stringifyValue(value)
+							);
+						}
+					});
+					codeBlock.textContent = displayCode;
+				}
+			}
+		});
 	}
 
 	stringifyValue(value: any): string {
