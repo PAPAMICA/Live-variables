@@ -1,3 +1,4 @@
+import React from 'react';
 import { DeleteFilled } from '@ant-design/icons';
 import { ConfigProvider, Table, TableProps } from 'antd';
 import { FC, useCallback, useEffect, useState } from 'react';
@@ -106,8 +107,8 @@ const LiveVariablesReactSettingTab: FC<LiveVariableReactSettingTabProps> = ({
 					desc="Highlight text in the editor"
 				>
 					<Setting.Toggle
-						value={hightlightText}
-						onChange={(e) => updateHighlightText(e.target.checked)}
+						checked={hightlightText}
+						onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateHighlightText(e.target.checked)}
 					/>
 				</Setting>
 				<Setting
@@ -119,7 +120,7 @@ const LiveVariablesReactSettingTab: FC<LiveVariableReactSettingTabProps> = ({
 						<Setting.Text
 							value={variableDelimiters.start}
 							placeHolder="Start delimiter"
-							onChange={(e) => {
+							onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
 								updateVariableDelimiters({
 									...variableDelimiters,
 									start: e.target.value
@@ -129,7 +130,7 @@ const LiveVariablesReactSettingTab: FC<LiveVariableReactSettingTabProps> = ({
 						<Setting.Text
 							value={variableDelimiters.end}
 							placeHolder="End delimiter"
-							onChange={(e) => {
+							onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
 								updateVariableDelimiters({
 									...variableDelimiters,
 									end: e.target.value

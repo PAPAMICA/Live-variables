@@ -1,3 +1,4 @@
+import React from 'react';
 import { ViewUpdate } from '@codemirror/view';
 import CodeMirror from '@uiw/react-codemirror';
 

@@ -1,3 +1,4 @@
+import React from 'react';
 import { App, Modal, MarkdownView, TFile } from 'obsidian';
 import { EditorView } from '@codemirror/view';
 import { createRoot, Root } from 'react-dom/client';

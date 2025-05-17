@@ -16,7 +16,6 @@ export const saveFunction = (
 		return;
 	}
 	settings.customFunctions.push({
-		key: functionName,
 		name: functionName,
 		code: functionCode,
 	});

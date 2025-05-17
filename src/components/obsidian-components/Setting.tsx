@@ -1,4 +1,5 @@
-import { Dropdown, MenuProps } from 'antd';
+import React from 'react';
+import { Dropdown } from 'antd';
 
 import {
 	ChangeEventHandler,
@@ -10,36 +11,61 @@ import {
 } from 'react';
 
 interface SettingProps {
+	className?: string;
 	name?: string;
 	desc?: string;
-	children?: ReactNode;
-	className?: string;
 	heading?: boolean;
-	style?: React.CSSProperties | undefined;
+	children?: React.ReactNode;
 }
 
-interface SettingComponent extends FC<SettingProps> {
+interface SettingTextProps {
+	value?: string;
+	placeHolder?: string;
+	onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}
+
+interface SettingButtonProps {
+	onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+	cta?: boolean;
+	children?: React.ReactNode;
+}
+
+interface SettingDropdownProps {
+	options: Record<string, { displayValue: string; desc?: string }>;
+	onChange?: React.ChangeEventHandler<HTMLSelectElement>;
+	value?: string | number | readonly string[];
+	disabled?: boolean;
+}
+
+interface SettingSearchProps {
+	value?: string;
+	placeHolder?: string;
+	onChange?: (value: string) => void;
+	suggestions?: string[];
+}
+
+interface SettingExtraButtonProps {
+	icon?: React.ReactNode;
+	onClick?: () => void;
+	ariaLabel?: string;
+}
+
+interface SettingToggleProps {
+	checked?: boolean;
+	onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}
+
+export const Setting: React.FC<SettingProps> & {
 	Text: FC<SettingTextProps>;
 	Button: FC<SettingButtonProps>;
 	Dropdown: FC<SettingDropdownProps>;
+	Toggle: FC<SettingToggleProps>;
 	Search: FC<SettingSearchProps>;
 	ExtraButton: FC<SettingExtraButtonProps>;
-	Toggle: FC<SettingToggleProps>;
-	Checkbox: FC<SettingCheckboxProps>;
-}
-
-const Setting: SettingComponent = ({
-	name = '',
-	desc = '',
-	children = '',
-	className = '',
-	heading = false,
-	style,
-}) => {
+} = ({ className, name, desc, heading, children }) => {
 	return (
 		<div
-			style={style}
-			className={`setting-item ${className} ${
+			className={`setting-item ${className || ''} ${
 				heading ? 'setting-item-heading' : ''
 			}`}
 		>
@@ -52,52 +78,24 @@ const Setting: SettingComponent = ({
 	);
 };
 
-interface SettingTextProps {
-	type?: string;
-	spellCheck?: boolean;
-	placeHolder?: string;
-	onChange?: ChangeEventHandler<HTMLInputElement>;
-	value?: string | number | readonly string[];
-}
-
-Setting.Text = ({
-	type = 'text',
-	spellCheck = false,
-	placeHolder = '',
-	onChange = () => {},
-	value,
-}) => {
+Setting.Text = ({ value, placeHolder, onChange }) => {
 	return (
 		<input
+			type="text"
 			value={value}
-			type={type}
-			spellCheck={spellCheck}
 			placeholder={placeHolder}
 			onChange={onChange}
 		/>
 	);
 };
 
-interface SettingButtonProps {
-	onClick?: MouseEventHandler<HTMLButtonElement>;
-	children?: ReactNode;
-	cta?: boolean;
-}
-
-Setting.Button = ({ onClick, children, cta = false }) => {
+Setting.Button = ({ onClick, cta, children }) => {
 	return (
 		<button className={cta ? 'mod-cta' : ''} onClick={onClick}>
 			{children}
 		</button>
 	);
 };
-
-interface SettingDropdownProps {
-	options: Record<string, { displayValue: string; desc?: string }>;
-	onChange?: ChangeEventHandler<HTMLSelectElement>;
-	value?: string | number | readonly string[];
-	disabled?: boolean;
-}
 
 Setting.Dropdown = ({ options = {}, onChange, value, disabled = false }) => {
 	return (
@@ -107,9 +105,9 @@ Setting.Dropdown = ({ options = {}, onChange, value, disabled = false }) => {
 			onChange={onChange}
 			value={value}
 		>
-			{Object.entries(options).map(([value, { displayValue }], index) => {
+			{Object.entries(options).map(([val, { displayValue }], index) => {
 				return (
-					<option key={index} value={value}>
+					<option key={index} value={val}>
 						{displayValue}
 					</option>
 				);
@@ -118,166 +116,55 @@ Setting.Dropdown = ({ options = {}, onChange, value, disabled = false }) => {
 	);
 };
 
-interface SettingCheckboxProps {
-	checked?: boolean;
-	onChange?: (checked: boolean) => void;
-	label?: string;
-	disabled?: boolean;
-}
-
-Setting.Checkbox = ({
-	checked = false,
-	onChange = () => {},
-	label = '',
-	disabled = false,
-}: SettingCheckboxProps) => {
-	const handleChange = () => {
-		if (!disabled) {
-			const newChecked = !checked;
-			onChange(newChecked);
-		}
-	};
-
-	return (
-		<div
-			className={`checkbox-container ${checked ? 'is-enabled' : ''}`}
-			onClick={handleChange}
-		>
-			<input
-				type="checkbox"
-				checked={checked}
-				disabled={disabled}
-				onChange={(e) => {
-					e.stopPropagation();
-				}}
-			/>
-		</div>
-	);
-};
-
-interface SettingSearchProps {
-	suggestions?: string[];
-	onChange?: (value: string) => void;
-	value?: string;
-	placeHolder?: string;
-}
-
-Setting.Search = ({
-	placeHolder = '',
-	suggestions = [],
-	value: initValue = '',
-	onChange = () => {},
-}) => {
-	const [items, setItems] = useState<MenuProps['items']>([]);
-
-	const [value, setValue] = useState(initValue);
-	const [selectedKey, setSelectedKey] = useState<string>('');
-
-	useEffect(() => {
-		onChange(value);
-	}, [value]);
-
-	useEffect(() => {
-		setItems(
-			suggestions.map((suggestion, index) => {
-				return {
-					key: index + 1,
-					label: suggestion,
-					onClick: (_) => {
-						setValue(suggestion);
-					},
-				};
-			})
-		);
-	}, [suggestions]);
-
+Setting.Search = ({ value, placeHolder, onChange, suggestions }) => {
 	return (
 		<div className="search-input-container">
 			<Dropdown
-				menu={{
-					items,
-					selectable: true,
-					selectedKeys: [selectedKey],
-					style: {
-						backgroundColor: 'var(--background-primary)',
-						maxHeight: '250px',
-						maxWidth: '500px',
-						overflowY: 'auto', // Enable vertical scrolling
-						overflowX: 'auto', // Enable horizontal scrolling
-						whiteSpace: 'nowrap', // Prevent text from wrapping
-						display: 'block', // Ensure block display for proper scrolling
-					},
-					onSelect: (info) => {
-						setSelectedKey(info.key);
-					},
-				}}
+				overlay={
+					<div className="search-suggestions">
+						{suggestions?.map((suggestion, index) => (
+							<div
+								key={index}
+								className="search-suggestion"
+								onClick={() => onChange?.(suggestion)}
+							>
+								{suggestion}
+							</div>
+						))}
+					</div>
+				}
 				trigger={['click']}
 			>
 				<input
-					enterKeyHint="search"
-					type="search"
-					spellCheck="false"
-					placeholder={placeHolder}
+					type="text"
 					value={value}
-					onChange={(e) => {
-						setValue(e.target.value);
-					}}
+					placeholder={placeHolder}
+					onChange={(e) => onChange?.(e.target.value)}
 				/>
 			</Dropdown>
-
-			<div
-				className="search-input-clear-button"
-				onClick={() => {
-					setValue('');
-					setSelectedKey('');
-				}}
-			></div>
 		</div>
 	);
 };
 
-interface SettingExtraButtonProps {
-	icon: ReactNode;
-	ariaLabel?: string;
-	onClick?: MouseEventHandler<HTMLDivElement>;
-}
-
-Setting.ExtraButton = ({ onClick = () => {}, icon, ariaLabel = '' }) => {
+Setting.ExtraButton = ({ icon, onClick, ariaLabel }) => {
 	return (
 		<div
-			className="clickable-icon extra-setting-button"
-			aria-label={ariaLabel}
+			className="setting-item-control-extra"
 			onClick={onClick}
+			aria-label={ariaLabel}
 		>
 			{icon}
 		</div>
 	);
 };
 
-interface SettingToggleProps {
-	disabled?: boolean;
-	defaultChecked?: boolean;
-	onChange?: MouseEventHandler<HTMLDivElement>;
-}
-
-Setting.Toggle = ({
-	disabled = false,
-	defaultChecked = false,
-	onChange = () => {},
-}) => {
-	const [checked, setChecked] = useState(defaultChecked);
+Setting.Toggle = ({ checked, onChange }) => {
 	return (
-		<div
-			className={`checkbox-container ${
-				checked ? 'is-enabled' : 'is-disabled'
-			}`}
-			onClick={(e) => {
-				setChecked(!checked);
-				onChange(e);
-			}}
-		>
-			<input disabled={disabled} type="checkbox" tabIndex={0} />
-		</div>
+		<input
+			type="checkbox"
+			checked={checked}
+			onChange={onChange}
+		/>
 	);
 };
 

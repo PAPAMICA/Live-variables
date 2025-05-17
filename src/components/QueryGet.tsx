@@ -1,3 +1,4 @@
+import React from 'react';
 import { FC, useEffect, useState } from 'react';
 import { VarQuery } from 'src/VariableQueryParser';
 import { QueryError } from './QueryModalReactForm';

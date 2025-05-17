@@ -1,3 +1,4 @@
+import React from 'react';
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import CodeEditor from './CodeEditor';
 import Setting from './obsidian-components/Setting';

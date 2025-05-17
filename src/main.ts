@@ -5,7 +5,7 @@ import {
 	DEFAULT_SETTINGS,
 	LiveVariablesSettings,
 } from './LiveVariablesSettings';
-import { LiveVariablesSettingTab } from './components/LiveVariableReactSettingTab';
+import { LiveVariablesSettingTab } from './LiveVariablesSettingTab';
 import VaultProperties from './VaultProperties';
 import queryVariablesCommand from './commands/query-variables';
 import insertGlobalVariableCommand from './commands/insert-global-variable';

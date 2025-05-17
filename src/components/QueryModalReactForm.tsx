@@ -1,3 +1,4 @@
+import React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import Setting from './obsidian-components/Setting';
 import { removeHighlight, stringifyIfObj, trancateString } from 'src/utils';
@@ -153,7 +154,7 @@ const QueryModalForm: React.FC<QueryModalFormProperties> = ({
 				<Setting.Dropdown
 					disabled={editMode}
 					options={queryFuncOptions}
-					onChange={(e) => {
+					onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
 						const value = e.target.value;
 						setQueryFunc(value);
 					}}
