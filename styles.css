@@ -82,3 +82,27 @@ If your plugin does not need CSS, delete this file.
 	border-radius: 4px;
 	/* font-weight: bold; */
 }
+
+.live-variable {
+	position: relative;
+	cursor: pointer;
+	background-color: rgba(255, 255, 0, 0.1);
+	border-radius: 2px;
+	padding: 0 2px;
+}
+
+.live-variable:hover::after {
+	content: attr(data-original);
+	position: absolute;
+	bottom: 100%;
+	left: 50%;
+	transform: translateX(-50%);
+	background-color: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	padding: 4px 8px;
+	border-radius: 4px;
+	font-size: 0.9em;
+	white-space: nowrap;
+	z-index: 1000;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}

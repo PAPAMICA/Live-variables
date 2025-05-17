@@ -127,7 +127,6 @@ export default class LiveVariables extends Plugin {
 				const startDelimiter = this.settings.variableDelimiters.start;
 				const endDelimiter = this.settings.variableDelimiters.end;
 				const regex = new RegExp(`${startDelimiter}(.*?)${endDelimiter}`, 'g');
-				let processedCode = code;
 				let hasVariables = false;
 
 				// Find all variables in the code block
@@ -135,25 +134,24 @@ export default class LiveVariables extends Plugin {
 				
 				if (variables.length > 0) {
 					hasVariables = true;
-					// Replace each variable with its value
+					// Create a display version with replaced values
+					let displayCode = code;
 					variables.forEach(variable => {
 						const value = this.vaultProperties.getProperty(variable);
 						if (value !== undefined) {
-							processedCode = processedCode.replace(
+							displayCode = displayCode.replace(
 								new RegExp(`${startDelimiter}${variable}${endDelimiter}`, 'g'),
-								value.toString()
+								`<span class="live-variable" data-original="${startDelimiter}${variable}${endDelimiter}">${value.toString()}</span>`
 							);
 						}
 					});
+
+					// Return the code block with replaced values
+					return `\`\`\`${lang}\n${displayCode}\n\`\`\``;
 				}
 
-				// If no variables were found or processed, return the original code block
-				if (!hasVariables) {
-					return match;
-				}
-
-				// Return the processed code block
-				return `\`\`\`${lang}\n${processedCode}\n\`\`\``;
+				// If no variables were found, return the original code block
+				return match;
 			});
 
 			// Then process regular variable spans
