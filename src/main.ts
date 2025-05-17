@@ -31,6 +31,13 @@ export default class LiveVariables extends Plugin {
 		this.addCommand(queryVariablesCommand(this));
 
 		this.addSettingTab(new LiveVariablesSettingTab(this.app, this));
+
+		// Add observer for code block updates
+		this.registerEvent(
+			this.app.workspace.on('layout-change', () => {
+				this.updateCodeBlocks();
+			})
+		);
 	}
 
 	renderVariables(file: TFile) {
@@ -146,8 +153,8 @@ export default class LiveVariables extends Plugin {
 						}
 					});
 
-					// Return the code block with replaced values
-					return `\`\`\`${lang}\n${displayCode}\n\`\`\``;
+					// Return the code block with replaced values and original code in data attribute
+					return `<div class="code-block-wrapper" data-original-code="${encodeURIComponent(code)}">\`\`\`${lang}\n${displayCode}\n\`\`\`</div>`;
 				}
 
 				// If no variables were found, return the original code block
@@ -205,5 +212,34 @@ export default class LiveVariables extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+	}
+
+	updateCodeBlocks() {
+		const codeBlocks = document.querySelectorAll('.code-block-wrapper');
+		codeBlocks.forEach((block) => {
+			const originalCode = decodeURIComponent(block.getAttribute('data-original-code') || '');
+			const lang = block.querySelector('code')?.className.replace('language-', '') || '';
+			const startDelimiter = this.settings.variableDelimiters.start;
+			const endDelimiter = this.settings.variableDelimiters.end;
+			const regex = new RegExp(`${startDelimiter}(.*?)${endDelimiter}`, 'g');
+
+			let displayCode = originalCode;
+			const variables = [...originalCode.matchAll(regex)].map(m => m[1]);
+			
+			variables.forEach(variable => {
+				const value = this.vaultProperties.getProperty(variable);
+				if (value !== undefined) {
+					displayCode = displayCode.replace(
+						new RegExp(`${startDelimiter}${variable}${endDelimiter}`, 'g'),
+						value.toString()
+					);
+				}
+			});
+
+			const codeElement = block.querySelector('code');
+			if (codeElement) {
+				codeElement.textContent = displayCode;
+			}
+		});
 	}
 }
