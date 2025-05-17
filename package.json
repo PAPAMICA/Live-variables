@@ -1,7 +1,7 @@
 {
-	"name": "obsidian-sample-plugin",
-	"version": "1.0.0",
-	"description": "This is a sample plugin for Obsidian (https://obsidian.md)",
+	"name": "live-variables-v2",
+	"version": "2.1.1",
+	"description": "Define variables in your note's properties and reuse them throughout your content.",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
@@ -15,7 +15,7 @@
 		]
 	},
 	"keywords": [],
-	"author": "",
+	"author": "Hamza Ben Yazid",
 	"license": "MIT",
 	"devDependencies": {
 		"@stylistic/eslint-plugin-js": "^2.8.0",

@@ -11,9 +11,19 @@
 		"importHelpers": true,
 		"isolatedModules": true,
 		"strictNullChecks": true,
+		"lib": [
+			"DOM",
+			"ES5",
+			"ES6",
+			"ES7"
+		],
+		"jsx": "react",
 		"allowSyntheticDefaultImports": true,
-		"lib": ["DOM", "ES5", "ES6", "ES7", "ES2021"],
-		"jsx": "react"
+		"resolveJsonModule": true,
+		"esModuleInterop": true
 	},
-	"include": ["**/*.ts", "**/*.tsx"]
+	"include": [
+		"**/*.ts",
+		"**/*.tsx"
+	]
 }
