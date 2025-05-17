@@ -44,6 +44,10 @@ export default class LiveVariables extends Plugin {
 				
 				const variables = [...code.matchAll(regex)].map(m => m[1]);
 				if (variables.length > 0) {
+					// Store original code and variables in data attributes
+					codeBlock.setAttribute('data-original-code', code);
+					codeBlock.setAttribute('data-variables', JSON.stringify(variables));
+
 					let displayCode = code;
 					variables.forEach(variable => {
 						const value = this.vaultProperties.getProperty(variable);
@@ -72,27 +76,49 @@ export default class LiveVariables extends Plugin {
 		// Register metadata cache change event
 		this.registerEvent(
 			this.app.metadataCache.on('changed', (file) => {
-				this.refreshCurrentView(file);
+				this.refreshAffectedCodeBlocks(file);
 			})
 		);
 
 		// Register file change event
 		this.registerEvent(
 			this.app.vault.on('modify', (file: TFile) => {
-				this.refreshCurrentView(file);
+				this.refreshAffectedCodeBlocks(file);
 			})
 		);
 	}
 
-	refreshCurrentView(file: TFile) {
+	refreshAffectedCodeBlocks(file: TFile) {
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 		if (view && view.file === file) {
-			// Force refresh of the current view
-			view.previewMode.rerender();
-			// Also refresh the editor if in source mode
-			if (view.getMode() === 'source') {
-				view.editor.refresh();
-			}
+			const codeBlocks = view.contentEl.querySelectorAll('pre code[data-variables]');
+			codeBlocks.forEach((codeBlock) => {
+				const originalCode = codeBlock.getAttribute('data-original-code') || '';
+				const variables = JSON.parse(codeBlock.getAttribute('data-variables') || '[]');
+				const startDelimiter = this.settings.variableDelimiters.start;
+				const endDelimiter = this.settings.variableDelimiters.end;
+
+				let displayCode = originalCode;
+				let needsUpdate = false;
+
+				variables.forEach((variable: string) => {
+					const value = this.vaultProperties.getProperty(variable);
+					if (value !== undefined) {
+						const newDisplay = displayCode.replace(
+							new RegExp(`${startDelimiter}${variable}${endDelimiter}`, 'g'),
+							value.toString()
+						);
+						if (newDisplay !== displayCode) {
+							needsUpdate = true;
+							displayCode = newDisplay;
+						}
+					}
+				});
+
+				if (needsUpdate) {
+					codeBlock.textContent = displayCode;
+				}
+			});
 		}
 	}
 
