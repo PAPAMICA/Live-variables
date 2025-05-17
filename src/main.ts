@@ -54,7 +54,7 @@ export default class LiveVariables extends Plugin {
 						if (value !== undefined) {
 							displayCode = displayCode.replace(
 								new RegExp(`${startDelimiter}${variable}${endDelimiter}`, 'g'),
-								value.toString()
+								this.stringifyValue(value)
 							);
 						}
 					});
@@ -88,37 +88,24 @@ export default class LiveVariables extends Plugin {
 		);
 	}
 
+	stringifyValue(value: any): string {
+		if (value === null) return 'null';
+		if (value === undefined) return 'undefined';
+		if (typeof value === 'object') {
+			try {
+				return JSON.stringify(value);
+			} catch {
+				return String(value);
+			}
+		}
+		return String(value);
+	}
+
 	refreshAffectedCodeBlocks(file: TFile) {
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 		if (view && view.file === file) {
-			const codeBlocks = view.contentEl.querySelectorAll('pre code[data-variables]');
-			codeBlocks.forEach((codeBlock) => {
-				const originalCode = codeBlock.getAttribute('data-original-code') || '';
-				const variables = JSON.parse(codeBlock.getAttribute('data-variables') || '[]');
-				const startDelimiter = this.settings.variableDelimiters.start;
-				const endDelimiter = this.settings.variableDelimiters.end;
-
-				let displayCode = originalCode;
-				let needsUpdate = false;
-
-				variables.forEach((variable: string) => {
-					const value = this.vaultProperties.getProperty(variable);
-					if (value !== undefined) {
-						const newDisplay = displayCode.replace(
-							new RegExp(`${startDelimiter}${variable}${endDelimiter}`, 'g'),
-							value.toString()
-						);
-						if (newDisplay !== displayCode) {
-							needsUpdate = true;
-							displayCode = newDisplay;
-						}
-					}
-				});
-
-				if (needsUpdate) {
-					codeBlock.textContent = displayCode;
-				}
-			});
+			// Force a complete refresh of the view
+			view.previewMode.rerender();
 		}
 	}
 
