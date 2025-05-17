@@ -165,8 +165,57 @@ export default class LiveVariables extends Plugin {
 						}
 					});
 
-					// Force update the content
-					codeBlock.textContent = displayCode;
+					// Store the original classes
+					const originalClasses = codeBlock.className;
+					const languageClass = originalClasses.split(' ').find(cls => cls.startsWith('language-'));
+					
+					// Create a temporary container
+					const tempContainer = document.createElement('div');
+					tempContainer.innerHTML = codeBlock.innerHTML;
+					
+					// Find all text nodes that might contain variables
+					const walker = document.createTreeWalker(
+						tempContainer,
+						NodeFilter.SHOW_TEXT,
+						null
+					);
+					
+					let node: Text | null;
+					while ((node = walker.nextNode() as Text)) {
+						let text = node.textContent || '';
+						let modified = false;
+						
+						variables.forEach((variable: string) => {
+							const value = this.vaultProperties.getProperty(variable);
+							if (value !== undefined) {
+								const regex = new RegExp(`${this.settings.variableDelimiters.start}${variable}${this.settings.variableDelimiters.end}`, 'g');
+								const newText = text.replace(regex, this.stringifyValue(value));
+								if (newText !== text) {
+									text = newText;
+									modified = true;
+								}
+							}
+						});
+						
+						if (modified) {
+							node.textContent = text;
+						}
+					}
+					
+					// Update the code block content while preserving formatting
+					codeBlock.innerHTML = tempContainer.innerHTML;
+					
+					// Restore original classes
+					codeBlock.className = originalClasses;
+					
+					// Force re-highlight if we have a language
+					if (languageClass) {
+						// Remove and re-add the language class to force re-highlight
+						codeBlock.classList.remove(languageClass);
+						setTimeout(() => {
+							codeBlock.classList.add(languageClass);
+						}, 0);
+					}
 
 					// Update the copy button handler with the new display code
 					const copyButton = codeBlock.parentElement?.querySelector('.copy-code-button');
@@ -177,14 +226,6 @@ export default class LiveVariables extends Plugin {
 							e.stopPropagation();
 							navigator.clipboard.writeText(displayCode);
 						});
-					}
-
-					// Force re-apply syntax highlighting
-					const language = codeBlock.className.split(' ').find(cls => cls.startsWith('language-'));
-					if (language) {
-						codeBlock.className = language;
-						// Trigger a re-highlight
-						codeBlock.classList.add('hljs');
 					}
 				}
 			}
