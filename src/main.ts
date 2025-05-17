@@ -106,13 +106,42 @@ export default class LiveVariables extends Plugin {
 		if (view && view.file === file) {
 			// Force a complete refresh of the view
 			view.previewMode.rerender();
+			
+			// Update the vault properties
+			this.vaultProperties.updateProperties(file);
+			
+			// Re-render all variables
+			this.renderVariables(file);
 		}
 	}
 
 	renderVariables(file: TFile) {
-		this.renderVariablesV1(file);
-		this.renderVariablesV2(file);
-		this.renderVariablesV3(file);
+		// Re-render all code blocks
+		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+		if (view && view.file === file) {
+			const codeBlocks = view.contentEl.querySelectorAll('pre code');
+			codeBlocks.forEach((codeBlock) => {
+				const code = codeBlock.textContent || '';
+				const startDelimiter = this.settings.variableDelimiters.start;
+				const endDelimiter = this.settings.variableDelimiters.end;
+				const regex = new RegExp(`${startDelimiter}(.*?)${endDelimiter}`, 'g');
+				
+				const variables = [...code.matchAll(regex)].map(m => m[1]);
+				if (variables.length > 0) {
+					let displayCode = code;
+					variables.forEach(variable => {
+						const value = this.vaultProperties.getProperty(variable);
+						if (value !== undefined) {
+							displayCode = displayCode.replace(
+								new RegExp(`${startDelimiter}${variable}${endDelimiter}`, 'g'),
+								this.stringifyValue(value)
+							);
+						}
+					});
+					codeBlock.textContent = displayCode;
+				}
+			});
+		}
 	}
 
 	renderVariablesV1(file: TFile) {

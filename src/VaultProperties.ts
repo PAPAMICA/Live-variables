@@ -94,53 +94,39 @@ export default class VaultProperties {
 		return this.getLocalValueByPath(this.localProperties, key);
 	}
 
-	getProperty(path: string): Properties {
-		return (
-			this.getLocalProperty(path) ??
-			this.getValueByPath(this.properties, path)
-		);
+	getProperty(path: string): any {
+		const currentFile = this.app.workspace.getActiveFile();
+		if (!currentFile) return undefined;
+
+		// Si le chemin contient un /, c'est une variable globale
+		if (path.includes('/')) {
+			const [filePath, propPath] = path.split('/');
+			const file = this.app.vault.getFileByPath(filePath);
+			if (!file) return undefined;
+			const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter;
+			if (!frontmatter) return undefined;
+			return this.getValueByPath(frontmatter, propPath);
+		}
+
+		// Sinon, c'est une variable locale
+		const frontmatter = this.app.metadataCache.getFileCache(currentFile)?.frontmatter;
+		if (!frontmatter) return undefined;
+		return this.getValueByPath(frontmatter, path);
 	}
 
 	getLocalProperties() {
 		return this.localProperties;
 	}
 
-	private getValueByPath(obj: Properties, path: string): Properties {
-		const isFolder = !path.contains('.md');
-		const keys: string[] = [];
-		if (isFolder) {
-			keys.push(...path.split('/'));
-		} else {
-			const [fileTreePath, propertyPath] = path.split('.md');
-			if (fileTreePath) keys.push(...(fileTreePath + '.md').split('/'));
-			if (propertyPath) keys.push(...propertyPath.slice(1).split('.'));
-		}
-		return this.traversePath(obj, keys) ?? {};
-	}
-
-	private traversePath(obj: Properties, keys: string[]) {
-		let result = obj;
-		for (const key of keys) {
-			if (
-				result &&
-				typeof result === 'object' &&
-				result[key] !== undefined
-			) {
-				result = result[key]; // Traverse into the next level
-			} else {
-				return undefined; // Return undefined if the path is not valid
+	private getValueByPath(obj: any, path: string): any {
+		if (!obj || !path) return undefined;
+		const keys = path.split('.');
+		return keys.reduce((acc, key) => {
+			if (acc && typeof acc === 'object' && acc.hasOwnProperty(key)) {
+				return acc[key];
 			}
-		}
-
-		return result; // Return the value at the final path
-	}
-
-	private getLocalValueByPath(
-		localProperties: Properties,
-		path: string
-	): Properties {
-		const keys = path.split('.'); // Split path into keys
-		return this.traversePath(localProperties, keys);
+			return undefined;
+		}, obj);
 	}
 
 	getAllVariableKeys() {
