@@ -7,6 +7,7 @@ export interface LiveVariablesSettings {
 	};
 	highlightText: boolean;
 	highlightDynamicVariables: boolean;
+	dynamicVariableColor: string;
 	customFunctions: CustomFunction[];
 }
 
@@ -17,5 +18,6 @@ export const DEFAULT_SETTINGS: LiveVariablesSettings = {
 	},
 	highlightText: false,
 	highlightDynamicVariables: true,
+	dynamicVariableColor: '#ff0000',
 	customFunctions: [],
 }; 

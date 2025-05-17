@@ -33,43 +33,54 @@ export default class LiveVariables extends Plugin {
 
 		this.addSettingTab(new LiveVariablesSettingTab(this.app, this));
 
-		// Register markdown post processor for code blocks
+		// Register markdown post processor for all content
 		this.registerMarkdownPostProcessor((element) => {
-			const codeBlocks = element.querySelectorAll('pre code');
-			codeBlocks.forEach((codeBlock) => {
-				const code = codeBlock.textContent || '';
+			// Process all text nodes in the document
+			const walker = document.createTreeWalker(
+				element,
+				NodeFilter.SHOW_TEXT,
+				null
+			);
+
+			let node: Text | null;
+			const nodesToReplace: { node: Text; newContent: string }[] = [];
+
+			while ((node = walker.nextNode() as Text)) {
+				const text = node.textContent || '';
 				const startDelimiter = this.settings.variableDelimiters.start;
 				const endDelimiter = this.settings.variableDelimiters.end;
 				const regex = new RegExp(`${startDelimiter}(.*?)${endDelimiter}`, 'g');
 				
-				const variables = [...code.matchAll(regex)].map(m => m[1]);
-				if (variables.length > 0) {
-					// Store original code and variables in data attributes
-					codeBlock.setAttribute('data-original-code', code);
-					codeBlock.setAttribute('data-variables', JSON.stringify(variables));
+				let modified = false;
+				let newText = text;
 
-					let displayCode = code;
-					variables.forEach((variable: string) => {
-						const value = this.vaultProperties.getProperty(variable);
-						if (value !== undefined) {
-							displayCode = displayCode.replace(
-								new RegExp(`${startDelimiter}${variable}${endDelimiter}`, 'g'),
-								this.stringifyValue(value)
-							);
-						}
-					});
-					codeBlock.textContent = displayCode;
-
-					// Add copy button handler
-					const copyButton = codeBlock.parentElement?.querySelector('.copy-code-button');
-					if (copyButton) {
-						copyButton.addEventListener('click', (e) => {
-							e.preventDefault();
-							e.stopPropagation();
-							navigator.clipboard.writeText(displayCode);
-						});
+				[...text.matchAll(regex)].forEach((match) => {
+					const variable = match[1];
+					const value = this.vaultProperties.getProperty(variable);
+					if (value !== undefined) {
+						const stringValue = this.stringifyValue(value);
+						const displayValue = this.settings.highlightDynamicVariables 
+							? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor}">${stringValue}</span>`
+							: stringValue;
+						newText = newText.replace(match[0], displayValue);
+						modified = true;
 					}
+				});
+
+				if (modified) {
+					nodesToReplace.push({ node, newContent: newText });
 				}
+			}
+
+			// Apply all replacements
+			nodesToReplace.forEach(({ node, newContent }) => {
+				const tempDiv = document.createElement('div');
+				tempDiv.innerHTML = newContent;
+				const fragment = document.createDocumentFragment();
+				while (tempDiv.firstChild) {
+					fragment.appendChild(tempDiv.firstChild);
+				}
+				node.parentNode?.replaceChild(fragment, node);
 			});
 		});
 
@@ -82,9 +93,6 @@ export default class LiveVariables extends Plugin {
 				// Get the active view
 				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 				if (view && view.file === file) {
-					// Force immediate update of all code blocks
-					this.updateCodeBlocksWithVariables(view);
-					
 					// Force a complete refresh of the view
 					if (view.getMode() === 'preview') {
 						view.previewMode.rerender();
@@ -107,9 +115,6 @@ export default class LiveVariables extends Plugin {
 				// Get the active view
 				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 				if (view && view.file === file) {
-					// Force immediate update of all code blocks
-					this.updateCodeBlocksWithVariables(view);
-					
 					// Force a complete refresh of the view
 					if (view.getMode() === 'preview') {
 						view.previewMode.rerender();
@@ -129,9 +134,6 @@ export default class LiveVariables extends Plugin {
 				if (view instanceof MarkdownView && view.file) {
 					// Update vault properties immediately
 					this.vaultProperties.updateProperties(view.file);
-					
-					// Force immediate update of all code blocks
-					this.updateCodeBlocksWithVariables(view);
 					
 					// Force a complete refresh of the view
 					if (view.getMode() === 'preview') {
@@ -184,7 +186,7 @@ export default class LiveVariables extends Plugin {
 						if (value !== undefined) {
 							const stringValue = this.stringifyValue(value);
 							const displayValue = this.settings.highlightDynamicVariables 
-								? `<span class="dynamic-variable">${stringValue}</span>`
+								? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor}">${stringValue}</span>`
 								: stringValue;
 							displayCode = displayCode.replace(
 								new RegExp(`${this.settings.variableDelimiters.start}${variable}${this.settings.variableDelimiters.end}`, 'g'),
@@ -206,7 +208,7 @@ export default class LiveVariables extends Plugin {
 				if (value !== undefined) {
 					const stringValue = this.stringifyValue(value);
 					const displayValue = this.settings.highlightDynamicVariables 
-						? `<span class="dynamic-variable">${stringValue}</span>`
+						? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor}">${stringValue}</span>`
 						: stringValue;
 					span.innerHTML = displayValue;
 				}

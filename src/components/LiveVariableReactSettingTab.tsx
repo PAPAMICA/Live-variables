@@ -20,6 +20,7 @@ const LiveVariablesReactSettingTab: FC<LiveVariableReactSettingTabProps> = ({
 
 	const [hightlightText, setHighlightText] = useState<boolean>();
 	const [highlightDynamicVariables, setHighlightDynamicVariables] = useState<boolean>();
+	const [dynamicVariableColor, setDynamicVariableColor] = useState<string>('#ff0000');
 	const [variableDelimiters, setVariableDelimiters] = useState<{
 		start: string;
 		end: string;
@@ -87,6 +88,12 @@ const LiveVariablesReactSettingTab: FC<LiveVariableReactSettingTabProps> = ({
 		plugin.saveSettings();
 	};
 
+	const updateDynamicVariableColor = (newValue: string) => {
+		setDynamicVariableColor(newValue);
+		plugin.settings.dynamicVariableColor = newValue;
+		plugin.saveSettings();
+	};
+
 	const updateVariableDelimiters = (newValue: { start: string; end: string }) => {
 		setVariableDelimiters(newValue);
 		plugin.settings.variableDelimiters = newValue;
@@ -98,6 +105,7 @@ const LiveVariablesReactSettingTab: FC<LiveVariableReactSettingTabProps> = ({
 		setCustomFunctions(plugin.settings.customFunctions);
 		setHighlightText(plugin.settings.highlightText);
 		setHighlightDynamicVariables(plugin.settings.highlightDynamicVariables);
+		setDynamicVariableColor(plugin.settings.dynamicVariableColor);
 		setVariableDelimiters(plugin.settings.variableDelimiters);
 	}, [deleteFunction, updateFunction]);
 
@@ -127,6 +135,18 @@ const LiveVariablesReactSettingTab: FC<LiveVariableReactSettingTabProps> = ({
 					<Setting.Toggle
 						checked={highlightDynamicVariables}
 						onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateHighlightDynamicVariables(e.target.checked)}
+					/>
+				</Setting>
+				<Setting
+					className="setting-item"
+					name="Dynamic Variable Color"
+					desc="Choose the color for dynamically updated variables"
+				>
+					<input
+						type="color"
+						value={dynamicVariableColor}
+						onChange={(e) => updateDynamicVariableColor(e.target.value)}
+						style={{ width: '50px', height: '25px' }}
 					/>
 				</Setting>
 				<Setting

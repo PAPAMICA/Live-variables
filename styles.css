@@ -113,9 +113,10 @@ If your plugin does not need CSS, delete this file.
 	mix-blend-mode: var(--highlight-mix-blend-mode);
 	padding: 0 4px;
 	border-radius: 4px;
-	transition: background-color 0.2s ease;
+	transition: all 0.2s ease;
 }
 
 .dynamic-variable:hover {
 	background-color: var(--interactive-accent);
+	opacity: 0.8;
 }
