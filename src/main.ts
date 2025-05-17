@@ -32,12 +32,31 @@ export default class LiveVariables extends Plugin {
 
 		this.addSettingTab(new LiveVariablesSettingTab(this.app, this));
 
-		// Add observer for code block updates
-		this.registerEvent(
-			this.app.workspace.on('layout-change', () => {
-				this.updateCodeBlocks();
-			})
-		);
+		// Register markdown post processor for code blocks
+		this.registerMarkdownPostProcessor((element) => {
+			const codeBlocks = element.querySelectorAll('pre code');
+			codeBlocks.forEach((codeBlock) => {
+				const code = codeBlock.textContent || '';
+				const startDelimiter = this.settings.variableDelimiters.start;
+				const endDelimiter = this.settings.variableDelimiters.end;
+				const regex = new RegExp(`${startDelimiter}(.*?)${endDelimiter}`, 'g');
+				
+				const variables = [...code.matchAll(regex)].map(m => m[1]);
+				if (variables.length > 0) {
+					let displayCode = code;
+					variables.forEach(variable => {
+						const value = this.vaultProperties.getProperty(variable);
+						if (value !== undefined) {
+							displayCode = displayCode.replace(
+								new RegExp(`${startDelimiter}${variable}${endDelimiter}`, 'g'),
+								value.toString()
+							);
+						}
+					});
+					codeBlock.textContent = displayCode;
+				}
+			});
+		});
 	}
 
 	renderVariables(file: TFile) {
@@ -124,44 +143,8 @@ export default class LiveVariables extends Plugin {
 			String.raw`<span query="([^"]+?)"><\/span>[\s\S]*?<span type="end"><\/span>`,
 			'g'
 		);
-		const codeBlockRe = new RegExp(
-			String.raw`\`\`\`(\w+)\n([\s\S]*?)\n\`\`\``,
-			'g'
-		);
 		this.app.vault.process(file, (data) => {
-			// Process code blocks first
-			data = data.replace(codeBlockRe, (match, lang, code) => {
-				const startDelimiter = this.settings.variableDelimiters.start;
-				const endDelimiter = this.settings.variableDelimiters.end;
-				const regex = new RegExp(`${startDelimiter}(.*?)${endDelimiter}`, 'g');
-				let hasVariables = false;
-
-				// Find all variables in the code block
-				const variables = [...code.matchAll(regex)].map(m => m[1]);
-				
-				if (variables.length > 0) {
-					hasVariables = true;
-					// Create a display version with replaced values
-					let displayCode = code;
-					variables.forEach(variable => {
-						const value = this.vaultProperties.getProperty(variable);
-						if (value !== undefined) {
-							displayCode = displayCode.replace(
-								new RegExp(`${startDelimiter}${variable}${endDelimiter}`, 'g'),
-								value.toString()
-							);
-						}
-					});
-
-					// Return the code block with replaced values and original code in data attribute
-					return `<div class="code-block-wrapper" data-original-code="${encodeURIComponent(code)}">\`\`\`${lang}\n${displayCode}\n\`\`\`</div>`;
-				}
-
-				// If no variables were found, return the original code block
-				return match;
-			});
-
-			// Then process regular variable spans
+			// Process regular variable spans
 			[...data.matchAll(re)].forEach((match) => {
 				const escapedQuery = match[1];
 				const query = unescape(escapedQuery);
@@ -212,34 +195,5 @@ export default class LiveVariables extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
-	}
-
-	updateCodeBlocks() {
-		const codeBlocks = document.querySelectorAll('.code-block-wrapper');
-		codeBlocks.forEach((block) => {
-			const originalCode = decodeURIComponent(block.getAttribute('data-original-code') || '');
-			const lang = block.querySelector('code')?.className.replace('language-', '') || '';
-			const startDelimiter = this.settings.variableDelimiters.start;
-			const endDelimiter = this.settings.variableDelimiters.end;
-			const regex = new RegExp(`${startDelimiter}(.*?)${endDelimiter}`, 'g');
-
-			let displayCode = originalCode;
-			const variables = [...originalCode.matchAll(regex)].map(m => m[1]);
-			
-			variables.forEach(variable => {
-				const value = this.vaultProperties.getProperty(variable);
-				if (value !== undefined) {
-					displayCode = displayCode.replace(
-						new RegExp(`${startDelimiter}${variable}${endDelimiter}`, 'g'),
-						value.toString()
-					);
-				}
-			});
-
-			const codeElement = block.querySelector('code');
-			if (codeElement) {
-				codeElement.textContent = displayCode;
-			}
-		});
 	}
 }
