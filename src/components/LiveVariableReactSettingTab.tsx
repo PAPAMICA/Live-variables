@@ -1,7 +1,7 @@
 import { DeleteFilled } from '@ant-design/icons';
 import { ConfigProvider, Table, TableProps } from 'antd';
 import { FC, useCallback, useEffect, useState } from 'react';
-import { CustomFunction } from 'src/LiveVariablesSettings';
+import { CustomFunction } from '../types';
 import LiveVariable from 'src/main';
 import CodeEditor from './CodeEditor';
 import Setting from './obsidian-components/Setting';
@@ -107,7 +107,7 @@ const LiveVariablesReactSettingTab: FC<LiveVariableReactSettingTabProps> = ({
 				>
 					<Setting.Toggle
 						value={hightlightText}
-						onChange={updateHighlightText}
+						onChange={(e) => updateHighlightText(e.target.checked)}
 					/>
 				</Setting>
 				<Setting

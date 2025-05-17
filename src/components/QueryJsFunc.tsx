@@ -179,7 +179,7 @@ export const QueryJsFunc = forwardRef<JsFuncRef, QueryJsFuncProps>(
 
 		const loadSavedFunction = () => {
 			if (isSavedCustomFunction() && queryFuncOptions[queryFunc].code) {
-				setCode(queryFuncOptions[queryFunc].code);
+				setCode(queryFuncOptions[queryFunc].code || '');
 				setName(queryFuncOptions[queryFunc].displayValue);
 			}
 		};

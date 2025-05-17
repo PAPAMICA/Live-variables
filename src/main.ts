@@ -4,8 +4,8 @@ import { stringifyIfObj, trancateString } from './utils';
 import {
 	DEFAULT_SETTINGS,
 	LiveVariablesSettings,
-	LiveVariablesSettingTab,
 } from './LiveVariablesSettings';
+import { LiveVariablesSettingTab } from './components/LiveVariableReactSettingTab';
 import VaultProperties from './VaultProperties';
 import queryVariablesCommand from './commands/query-variables';
 import insertGlobalVariableCommand from './commands/insert-global-variable';

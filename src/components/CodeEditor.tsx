@@ -1,14 +1,19 @@
-import { FC } from 'react';
+import { ViewUpdate } from '@codemirror/view';
 import CodeMirror from '@uiw/react-codemirror';
 
 interface CodeEditorProps {
-	value?: string;
-	onChange?: (val: string, viewUpdate: string) => void;
+	value: string;
+	onChange?: (value: string, viewUpdate: ViewUpdate) => void;
 }
 
-const CodeEditor: FC<CodeEditorProps> = ({ value, onChange }) => {
+const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange }) => {
 	return (
-		<CodeMirror theme="dark" value={value} basicSetup onChange={onChange} />
+		<CodeMirror
+			theme="dark"
+			value={value}
+			basicSetup
+			onChange={onChange}
+		/>
 	);
 };
 
