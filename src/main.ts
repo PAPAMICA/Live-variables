@@ -76,14 +76,14 @@ export default class LiveVariables extends Plugin {
 		// Register metadata cache change event
 		this.registerEvent(
 			this.app.metadataCache.on('changed', (file) => {
-				this.refreshAffectedCodeBlocks(file);
+				this.handleFileChange(file);
 			})
 		);
 
 		// Register file change event
 		this.registerEvent(
 			this.app.vault.on('modify', (file: TFile) => {
-				this.refreshAffectedCodeBlocks(file);
+				this.handleFileChange(file);
 			})
 		);
 
@@ -105,6 +105,22 @@ export default class LiveVariables extends Plugin {
 		);
 	}
 
+	handleFileChange(file: TFile) {
+		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+		if (view && view.file === file) {
+			// Update vault properties first
+			this.vaultProperties.updateProperties(file);
+			
+			// Force immediate update of the view
+			view.previewMode.rerender();
+			
+			// Use setTimeout to ensure the DOM is updated before we modify it
+			setTimeout(() => {
+				this.renderVariables(file);
+			}, 0);
+		}
+	}
+
 	stringifyValue(value: any): string {
 		if (value === null) return 'null';
 		if (value === undefined) return 'undefined';
@@ -116,20 +132,6 @@ export default class LiveVariables extends Plugin {
 			}
 		}
 		return String(value);
-	}
-
-	refreshAffectedCodeBlocks(file: TFile) {
-		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-		if (view && view.file === file) {
-			// Force immediate update of the view
-			view.previewMode.rerender();
-			
-			// Update vault properties
-			this.vaultProperties.updateProperties(file);
-			
-			// Re-render variables
-			this.renderVariables(file);
-		}
 	}
 
 	renderVariables(file: TFile) {
