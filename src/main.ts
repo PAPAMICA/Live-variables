@@ -84,16 +84,6 @@ export default class LiveVariables extends Plugin {
 				if (view && view.file === file) {
 					// Force immediate update of all code blocks
 					this.updateCodeBlocksWithVariables(view);
-					
-					// Force a complete refresh of the view
-					if (view.getMode() === 'preview') {
-						view.previewMode.rerender();
-					} else {
-						view.editor.refresh();
-					}
-					
-					// Force a complete refresh of the workspace
-					this.app.workspace.trigger('resize');
 				}
 			})
 		);
@@ -109,16 +99,6 @@ export default class LiveVariables extends Plugin {
 				if (view && view.file === file) {
 					// Force immediate update of all code blocks
 					this.updateCodeBlocksWithVariables(view);
-					
-					// Force a complete refresh of the view
-					if (view.getMode() === 'preview') {
-						view.previewMode.rerender();
-					} else {
-						view.editor.refresh();
-					}
-					
-					// Force a complete refresh of the workspace
-					this.app.workspace.trigger('resize');
 				}
 			})
 		);
@@ -195,6 +175,36 @@ export default class LiveVariables extends Plugin {
 						view.previewMode.rerender();
 					}
 				}
+			}
+		});
+
+		// Force a complete refresh of the view
+		if (view.getMode() === 'preview') {
+			view.previewMode.rerender();
+		} else {
+			view.editor.refresh();
+		}
+
+		// Force a complete refresh of the workspace
+		this.app.workspace.trigger('resize');
+
+		// Force syntax highlighting update
+		this.forceSyntaxHighlighting(view);
+	}
+
+	forceSyntaxHighlighting(view: MarkdownView) {
+		const codeBlocks = view.contentEl.querySelectorAll('pre code');
+		codeBlocks.forEach((codeBlock) => {
+			// Get the language class
+			const languageClass = Array.from(codeBlock.classList)
+				.find(cls => cls.startsWith('language-'));
+			
+			if (languageClass) {
+				// Remove and re-add the language class to force re-highlighting
+				codeBlock.classList.remove(languageClass);
+				setTimeout(() => {
+					codeBlock.classList.add(languageClass);
+				}, 0);
 			}
 		});
 	}
