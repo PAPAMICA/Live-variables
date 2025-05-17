@@ -83,17 +83,17 @@ export default class LiveVariables extends Plugin {
 				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 				if (view && view.file === file) {
 					// Force immediate update of all code blocks
-					setTimeout(() => {
-						this.updateCodeBlocksWithVariables(view);
-						// Force a complete refresh of the view
-						if (view.getMode() === 'preview') {
-							view.previewMode.rerender();
-						} else {
-							view.editor.refresh();
-						}
-						// Force a complete refresh of the workspace
-						this.app.workspace.trigger('resize');
-					}, 0);
+					this.updateCodeBlocksWithVariables(view);
+					
+					// Force a complete refresh of the view
+					if (view.getMode() === 'preview') {
+						view.previewMode.rerender();
+					} else {
+						view.editor.refresh();
+					}
+					
+					// Force a complete refresh of the workspace
+					this.app.workspace.trigger('resize');
 				}
 			})
 		);
@@ -108,17 +108,40 @@ export default class LiveVariables extends Plugin {
 				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 				if (view && view.file === file) {
 					// Force immediate update of all code blocks
-					setTimeout(() => {
-						this.updateCodeBlocksWithVariables(view);
-						// Force a complete refresh of the view
-						if (view.getMode() === 'preview') {
-							view.previewMode.rerender();
-						} else {
-							view.editor.refresh();
-						}
-						// Force a complete refresh of the workspace
-						this.app.workspace.trigger('resize');
-					}, 0);
+					this.updateCodeBlocksWithVariables(view);
+					
+					// Force a complete refresh of the view
+					if (view.getMode() === 'preview') {
+						view.previewMode.rerender();
+					} else {
+						view.editor.refresh();
+					}
+					
+					// Force a complete refresh of the workspace
+					this.app.workspace.trigger('resize');
+				}
+			})
+		);
+
+		// Register editor change event
+		this.registerEvent(
+			this.app.workspace.on('editor-change', (editor, view) => {
+				if (view instanceof MarkdownView && view.file) {
+					// Update vault properties immediately
+					this.vaultProperties.updateProperties(view.file);
+					
+					// Force immediate update of all code blocks
+					this.updateCodeBlocksWithVariables(view);
+					
+					// Force a complete refresh of the view
+					if (view.getMode() === 'preview') {
+						view.previewMode.rerender();
+					} else {
+						view.editor.refresh();
+					}
+					
+					// Force a complete refresh of the workspace
+					this.app.workspace.trigger('resize');
 				}
 			})
 		);
