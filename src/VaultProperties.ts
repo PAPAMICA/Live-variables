@@ -91,7 +91,7 @@ export default class VaultProperties {
 	}
 
 	getLocalProperty(key: string): Properties {
-		return this.getLocalValueByPath(this.localProperties, key);
+		return this.getValueByPath(this.localProperties, key);
 	}
 
 	getProperty(path: string): any {
