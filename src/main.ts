@@ -13,6 +13,7 @@ import insertLocalVariableCommand from './commands/insert-local-variable';
 import metadataCacheChangeEvent from './events/metadata-cache-change';
 import activeLeafChangeEvent from './events/active-leaf-change';
 import { unescape } from 'he';
+import { MarkdownView } from 'obsidian';
 
 export default class LiveVariables extends Plugin {
 	public settings: LiveVariablesSettings;
@@ -54,9 +55,30 @@ export default class LiveVariables extends Plugin {
 						}
 					});
 					codeBlock.textContent = displayCode;
+
+					// Add copy button handler
+					const copyButton = codeBlock.parentElement?.querySelector('.copy-code-button');
+					if (copyButton) {
+						copyButton.addEventListener('click', (e) => {
+							e.preventDefault();
+							e.stopPropagation();
+							navigator.clipboard.writeText(displayCode);
+						});
+					}
 				}
 			});
 		});
+
+		// Register metadata cache change event
+		this.registerEvent(
+			this.app.metadataCache.on('changed', (file) => {
+				// Force refresh of the current view
+				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+				if (view && view.file === file) {
+					view.previewMode.rerender();
+				}
+			})
+		);
 	}
 
 	renderVariables(file: TFile) {
