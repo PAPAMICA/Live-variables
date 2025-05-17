@@ -83,17 +83,17 @@ export default class LiveVariables extends Plugin {
 				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 				if (view && view.file === file) {
 					// Force immediate update of all code blocks
-					setTimeout(() => {
-						this.updateCodeBlocksWithVariables(view);
-						// Force a complete refresh of the view
-						if (view.getMode() === 'preview') {
-							view.previewMode.rerender();
-						} else {
-							view.editor.refresh();
-						}
-						// Force a complete refresh of the workspace
-						this.app.workspace.trigger('resize');
-					}, 0);
+					this.updateCodeBlocksWithVariables(view);
+					
+					// Force a complete refresh of the view
+					if (view.getMode() === 'preview') {
+						view.previewMode.rerender();
+					} else {
+						view.editor.refresh();
+					}
+					
+					// Force a complete refresh of the workspace
+					this.app.workspace.trigger('resize');
 				}
 			})
 		);
@@ -108,17 +108,17 @@ export default class LiveVariables extends Plugin {
 				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 				if (view && view.file === file) {
 					// Force immediate update of all code blocks
-					setTimeout(() => {
-						this.updateCodeBlocksWithVariables(view);
-						// Force a complete refresh of the view
-						if (view.getMode() === 'preview') {
-							view.previewMode.rerender();
-						} else {
-							view.editor.refresh();
-						}
-						// Force a complete refresh of the workspace
-						this.app.workspace.trigger('resize');
-					}, 0);
+					this.updateCodeBlocksWithVariables(view);
+					
+					// Force a complete refresh of the view
+					if (view.getMode() === 'preview') {
+						view.previewMode.rerender();
+					} else {
+						view.editor.refresh();
+					}
+					
+					// Force a complete refresh of the workspace
+					this.app.workspace.trigger('resize');
 				}
 			})
 		);
@@ -165,50 +165,22 @@ export default class LiveVariables extends Plugin {
 						}
 					});
 
-					// Store the original classes
+					// Store original classes and parent element
 					const originalClasses = codeBlock.className;
-					
-					// Create a temporary container to preserve formatting
-					const tempContainer = document.createElement('div');
-					tempContainer.innerHTML = codeBlock.innerHTML;
-					
-					// Find all text nodes that might contain variables
-					const walker = document.createTreeWalker(
-						tempContainer,
-						NodeFilter.SHOW_TEXT,
-						null
-					);
-					
-					let node: Text | null;
-					while ((node = walker.nextNode() as Text)) {
-						let text = node.textContent || '';
-						let modified = false;
-						
-						variables.forEach((variable: string) => {
-							const value = this.vaultProperties.getProperty(variable);
-							if (value !== undefined) {
-								const regex = new RegExp(`${this.settings.variableDelimiters.start}${variable}${this.settings.variableDelimiters.end}`, 'g');
-								const newText = text.replace(regex, this.stringifyValue(value));
-								if (newText !== text) {
-									text = newText;
-									modified = true;
-								}
-							}
-						});
-						
-						if (modified) {
-							node.textContent = text;
-						}
+					const parentElement = codeBlock.parentElement;
+
+					// Create a new code element with the updated content
+					const newCodeBlock = document.createElement('code');
+					newCodeBlock.textContent = displayCode;
+					newCodeBlock.className = originalClasses;
+
+					// Replace the old code block with the new one
+					if (parentElement) {
+						parentElement.replaceChild(newCodeBlock, codeBlock);
 					}
-					
-					// Update the code block content while preserving formatting
-					codeBlock.innerHTML = tempContainer.innerHTML;
-					
-					// Restore original classes
-					codeBlock.className = originalClasses;
 
 					// Update the copy button handler with the new display code
-					const copyButton = codeBlock.parentElement?.querySelector('.copy-code-button');
+					const copyButton = newCodeBlock.parentElement?.querySelector('.copy-code-button');
 					if (copyButton) {
 						copyButton.removeEventListener('click', () => {});
 						copyButton.addEventListener('click', (e) => {
