@@ -143,42 +143,44 @@ export default class LiveVariables extends Plugin {
 				const variables = JSON.parse(codeBlock.getAttribute('data-variables') || '[]');
 				
 				if (variables.length > 0) {
-					let displayCode = originalCode;
 					const startDelimiter = this.settings.variableDelimiters.start;
 					const endDelimiter = this.settings.variableDelimiters.end;
 					
-					variables.forEach((variable: string) => {
-						const value = this.vaultProperties.getProperty(variable);
-						if (value !== undefined) {
-							displayCode = displayCode.replace(
-								new RegExp(`${startDelimiter}${variable}${endDelimiter}`, 'g'),
-								this.stringifyValue(value)
-							);
-						}
-					});
+					// Create a temporary container to hold the code
+					const tempContainer = document.createElement('div');
+					tempContainer.innerHTML = codeBlock.innerHTML;
 					
-					// Update the code block content while preserving syntax highlighting
-					const preElement = codeBlock.parentElement;
-					if (preElement) {
-						// Store the language class
-						const languageClass = Array.from(codeBlock.classList)
-							.find(cls => cls.startsWith('language-'));
+					// Find all text nodes that might contain variables
+					const walker = document.createTreeWalker(
+						tempContainer,
+						NodeFilter.SHOW_TEXT,
+						null
+					);
+					
+					let node: Text | null;
+					while ((node = walker.nextNode() as Text)) {
+						let text = node.textContent || '';
+						let modified = false;
 						
-						// Create a new code element
-						const newCode = document.createElement('code');
-						if (languageClass) {
-							newCode.classList.add(languageClass);
-						}
-						newCode.textContent = displayCode;
+						variables.forEach((variable: string) => {
+							const value = this.vaultProperties.getProperty(variable);
+							if (value !== undefined) {
+								const regex = new RegExp(`${startDelimiter}${variable}${endDelimiter}`, 'g');
+								const newText = text.replace(regex, this.stringifyValue(value));
+								if (newText !== text) {
+									text = newText;
+									modified = true;
+								}
+							}
+						});
 						
-						// Replace the old code element with the new one
-						preElement.replaceChild(newCode, codeBlock);
-						
-						// Re-apply Prism.js highlighting if available
-						if (window.Prism) {
-							window.Prism.highlightElement(newCode);
+						if (modified) {
+							node.textContent = text;
 						}
 					}
+					
+					// Update the code block content while preserving formatting
+					codeBlock.innerHTML = tempContainer.innerHTML;
 				}
 			});
 		}
