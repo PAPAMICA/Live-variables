@@ -157,8 +157,28 @@ export default class LiveVariables extends Plugin {
 						}
 					});
 					
-					// Update the code block content
-					codeBlock.textContent = displayCode;
+					// Update the code block content while preserving syntax highlighting
+					const preElement = codeBlock.parentElement;
+					if (preElement) {
+						// Store the language class
+						const languageClass = Array.from(codeBlock.classList)
+							.find(cls => cls.startsWith('language-'));
+						
+						// Create a new code element
+						const newCode = document.createElement('code');
+						if (languageClass) {
+							newCode.classList.add(languageClass);
+						}
+						newCode.textContent = displayCode;
+						
+						// Replace the old code element with the new one
+						preElement.replaceChild(newCode, codeBlock);
+						
+						// Re-apply Prism.js highlighting if available
+						if (window.Prism) {
+							window.Prism.highlightElement(newCode);
+						}
+					}
 				}
 			});
 		}
