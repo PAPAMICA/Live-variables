@@ -1,19 +1,21 @@
 import { CustomFunction } from './types';
 
 export interface LiveVariablesSettings {
-	highlightText: boolean;
-	customFunctions: CustomFunction[];
 	variableDelimiters: {
 		start: string;
 		end: string;
 	};
+	highlightText: boolean;
+	highlightDynamicVariables: boolean;
+	customFunctions: CustomFunction[];
 }
 
 export const DEFAULT_SETTINGS: LiveVariablesSettings = {
-	highlightText: true,
-	customFunctions: [],
 	variableDelimiters: {
 		start: '{{',
-		end: '}}'
-	}
+		end: '}}',
+	},
+	highlightText: false,
+	highlightDynamicVariables: true,
+	customFunctions: [],
 }; 

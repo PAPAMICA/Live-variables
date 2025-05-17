@@ -171,64 +171,44 @@ export default class LiveVariables extends Plugin {
 	}
 
 	updateCodeBlocksWithVariables(view: MarkdownView) {
+		// Update code blocks
 		const codeBlocks = view.contentEl.querySelectorAll('pre code');
 		codeBlocks.forEach((codeBlock) => {
 			const originalCode = codeBlock.getAttribute('data-original-code');
 			if (originalCode) {
 				const variables = JSON.parse(codeBlock.getAttribute('data-variables') || '[]');
 				if (variables.length > 0) {
-					// Create a temporary container to preserve formatting
-					const tempContainer = document.createElement('div');
-					tempContainer.innerHTML = codeBlock.innerHTML;
-					
-					// Find all text nodes that might contain variables
-					const walker = document.createTreeWalker(
-						tempContainer,
-						NodeFilter.SHOW_TEXT,
-						null
-					);
-					
-					let node: Text | null;
-					while ((node = walker.nextNode() as Text)) {
-						let text = node.textContent || '';
-						let modified = false;
-						
-						variables.forEach((variable: string) => {
-							const value = this.vaultProperties.getProperty(variable);
-							if (value !== undefined) {
-								const regex = new RegExp(`${this.settings.variableDelimiters.start}${variable}${this.settings.variableDelimiters.end}`, 'g');
-								const newText = text.replace(regex, this.stringifyValue(value));
-								if (newText !== text) {
-									text = newText;
-									modified = true;
-								}
-							}
-						});
-						
-						if (modified) {
-							node.textContent = text;
+					let displayCode = originalCode;
+					variables.forEach((variable: string) => {
+						const value = this.vaultProperties.getProperty(variable);
+						if (value !== undefined) {
+							const stringValue = this.stringifyValue(value);
+							const displayValue = this.settings.highlightDynamicVariables 
+								? `<span class="dynamic-variable">${stringValue}</span>`
+								: stringValue;
+							displayCode = displayCode.replace(
+								new RegExp(`${this.settings.variableDelimiters.start}${variable}${this.settings.variableDelimiters.end}`, 'g'),
+								displayValue
+							);
 						}
-					}
-					
-					// Update only the text content while preserving all formatting
-					const originalHTML = codeBlock.innerHTML;
-					codeBlock.innerHTML = tempContainer.innerHTML;
-					
-					// Restore any lost classes or attributes
-					if (codeBlock.className !== originalHTML) {
-						codeBlock.className = originalHTML;
-					}
+					});
+					codeBlock.innerHTML = displayCode;
+				}
+			}
+		});
 
-					// Update the copy button handler with the new display code
-					const copyButton = codeBlock.parentElement?.querySelector('.copy-code-button');
-					if (copyButton) {
-						copyButton.removeEventListener('click', () => {});
-						copyButton.addEventListener('click', (e) => {
-							e.preventDefault();
-							e.stopPropagation();
-							navigator.clipboard.writeText(codeBlock.textContent || '');
-						});
-					}
+		// Update all spans with variables
+		const spans = view.contentEl.querySelectorAll('span[query]');
+		spans.forEach((span) => {
+			const query = span.getAttribute('query');
+			if (query) {
+				const value = tryComputeValueFromQuery(query, this.vaultProperties, this.settings);
+				if (value !== undefined) {
+					const stringValue = this.stringifyValue(value);
+					const displayValue = this.settings.highlightDynamicVariables 
+						? `<span class="dynamic-variable">${stringValue}</span>`
+						: stringValue;
+					span.innerHTML = displayValue;
 				}
 			}
 		});

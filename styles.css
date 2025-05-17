@@ -106,3 +106,16 @@ If your plugin does not need CSS, delete this file.
 	z-index: 1000;
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
+
+.dynamic-variable {
+	background-color: var(--text-selection);
+	border-bottom: 2px solid var(--color-purple);
+	mix-blend-mode: var(--highlight-mix-blend-mode);
+	padding: 0 4px;
+	border-radius: 4px;
+	transition: background-color 0.2s ease;
+}
+
+.dynamic-variable:hover {
+	background-color: var(--interactive-accent);
+}

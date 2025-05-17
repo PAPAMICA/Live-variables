@@ -19,6 +19,7 @@ const LiveVariablesReactSettingTab: FC<LiveVariableReactSettingTabProps> = ({
 	);
 
 	const [hightlightText, setHighlightText] = useState<boolean>();
+	const [highlightDynamicVariables, setHighlightDynamicVariables] = useState<boolean>();
 	const [variableDelimiters, setVariableDelimiters] = useState<{
 		start: string;
 		end: string;
@@ -80,6 +81,12 @@ const LiveVariablesReactSettingTab: FC<LiveVariableReactSettingTabProps> = ({
 		plugin.saveSettings();
 	};
 
+	const updateHighlightDynamicVariables = (newValue: boolean) => {
+		setHighlightDynamicVariables(newValue);
+		plugin.settings.highlightDynamicVariables = newValue;
+		plugin.saveSettings();
+	};
+
 	const updateVariableDelimiters = (newValue: { start: string; end: string }) => {
 		setVariableDelimiters(newValue);
 		plugin.settings.variableDelimiters = newValue;
@@ -90,6 +97,7 @@ const LiveVariablesReactSettingTab: FC<LiveVariableReactSettingTabProps> = ({
 		await plugin.loadSettings();
 		setCustomFunctions(plugin.settings.customFunctions);
 		setHighlightText(plugin.settings.highlightText);
+		setHighlightDynamicVariables(plugin.settings.highlightDynamicVariables);
 		setVariableDelimiters(plugin.settings.variableDelimiters);
 	}, [deleteFunction, updateFunction]);
 
@@ -109,6 +117,16 @@ const LiveVariablesReactSettingTab: FC<LiveVariableReactSettingTabProps> = ({
 					<Setting.Toggle
 						checked={hightlightText}
 						onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateHighlightText(e.target.checked)}
+					/>
+				</Setting>
+				<Setting
+					className="setting-item"
+					name="Highlight Dynamic Variables"
+					desc="Highlight variables that are dynamically updated"
+				>
+					<Setting.Toggle
+						checked={highlightDynamicVariables}
+						onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateHighlightDynamicVariables(e.target.checked)}
 					/>
 				</Setting>
 				<Setting
