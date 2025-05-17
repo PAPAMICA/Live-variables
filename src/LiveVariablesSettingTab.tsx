@@ -6,6 +6,8 @@ import LiveVariable from './main';
 
 export class LiveVariablesSettingTab extends PluginSettingTab {
   plugin: LiveVariable;
+  root: ReturnType<typeof createRoot> | null = null;
+
   constructor(app: App, plugin: LiveVariable) {
     super(app, plugin);
     this.plugin = plugin;
@@ -13,8 +15,15 @@ export class LiveVariablesSettingTab extends PluginSettingTab {
 
   display(): void {
     const { containerEl } = this;
-    createRoot(containerEl).render(
+    containerEl.empty();
+    this.root = createRoot(containerEl);
+    this.root.render(
       <LiveVariablesReactSettingTab plugin={this.plugin} />
     );
+  }
+
+  hide(): void {
+    this.root?.unmount();
+    this.root = null;
   }
 } 
