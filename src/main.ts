@@ -141,7 +141,7 @@ export default class LiveVariables extends Plugin {
 						if (value !== undefined) {
 							displayCode = displayCode.replace(
 								new RegExp(`${startDelimiter}${variable}${endDelimiter}`, 'g'),
-								`<span class="live-variable" data-original="${startDelimiter}${variable}${endDelimiter}">${value.toString()}</span>`
+								value.toString()
 							);
 						}
 					});
