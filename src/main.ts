@@ -83,7 +83,17 @@ export default class LiveVariables extends Plugin {
 				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 				if (view && view.file === file) {
 					// Force immediate update of all code blocks
-					this.updateCodeBlocksWithVariables(view);
+					setTimeout(() => {
+						this.updateCodeBlocksWithVariables(view);
+						// Force a complete refresh of the view
+						if (view.getMode() === 'preview') {
+							view.previewMode.rerender();
+						} else {
+							view.editor.refresh();
+						}
+						// Force a complete refresh of the workspace
+						this.app.workspace.trigger('resize');
+					}, 0);
 				}
 			})
 		);
@@ -98,7 +108,17 @@ export default class LiveVariables extends Plugin {
 				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 				if (view && view.file === file) {
 					// Force immediate update of all code blocks
-					this.updateCodeBlocksWithVariables(view);
+					setTimeout(() => {
+						this.updateCodeBlocksWithVariables(view);
+						// Force a complete refresh of the view
+						if (view.getMode() === 'preview') {
+							view.previewMode.rerender();
+						} else {
+							view.editor.refresh();
+						}
+						// Force a complete refresh of the workspace
+						this.app.workspace.trigger('resize');
+					}, 0);
 				}
 			})
 		);
@@ -134,77 +154,59 @@ export default class LiveVariables extends Plugin {
 			if (originalCode) {
 				const variables = JSON.parse(codeBlock.getAttribute('data-variables') || '[]');
 				if (variables.length > 0) {
-					let displayCode = originalCode;
-					variables.forEach((variable: string) => {
-						const value = this.vaultProperties.getProperty(variable);
-						if (value !== undefined) {
-							displayCode = displayCode.replace(
-								new RegExp(`${this.settings.variableDelimiters.start}${variable}${this.settings.variableDelimiters.end}`, 'g'),
-								this.stringifyValue(value)
-							);
+					// Create a temporary container to preserve formatting
+					const tempContainer = document.createElement('div');
+					tempContainer.innerHTML = codeBlock.innerHTML;
+					
+					// Find all text nodes that might contain variables
+					const walker = document.createTreeWalker(
+						tempContainer,
+						NodeFilter.SHOW_TEXT,
+						null
+					);
+					
+					let node: Text | null;
+					while ((node = walker.nextNode() as Text)) {
+						let text = node.textContent || '';
+						let modified = false;
+						
+						variables.forEach((variable: string) => {
+							const value = this.vaultProperties.getProperty(variable);
+							if (value !== undefined) {
+								const regex = new RegExp(`${this.settings.variableDelimiters.start}${variable}${this.settings.variableDelimiters.end}`, 'g');
+								const newText = text.replace(regex, this.stringifyValue(value));
+								if (newText !== text) {
+									text = newText;
+									modified = true;
+								}
+							}
+						});
+						
+						if (modified) {
+							node.textContent = text;
 						}
-					});
-
-					// Store original classes and parent element
-					const originalClasses = codeBlock.className;
-					const parentElement = codeBlock.parentElement;
-
-					// Create a new code element with the updated content
-					const newCodeBlock = document.createElement('code');
-					newCodeBlock.textContent = displayCode;
-					newCodeBlock.className = originalClasses;
-
-					// Replace the old code block with the new one
-					if (parentElement) {
-						parentElement.replaceChild(newCodeBlock, codeBlock);
+					}
+					
+					// Update only the text content while preserving all formatting
+					const originalHTML = codeBlock.innerHTML;
+					codeBlock.innerHTML = tempContainer.innerHTML;
+					
+					// Restore any lost classes or attributes
+					if (codeBlock.className !== originalHTML) {
+						codeBlock.className = originalHTML;
 					}
 
 					// Update the copy button handler with the new display code
-					const copyButton = newCodeBlock.parentElement?.querySelector('.copy-code-button');
+					const copyButton = codeBlock.parentElement?.querySelector('.copy-code-button');
 					if (copyButton) {
 						copyButton.removeEventListener('click', () => {});
 						copyButton.addEventListener('click', (e) => {
 							e.preventDefault();
 							e.stopPropagation();
-							navigator.clipboard.writeText(displayCode);
+							navigator.clipboard.writeText(codeBlock.textContent || '');
 						});
 					}
-
-					// Force Obsidian to re-apply syntax highlighting
-					if (view.getMode() === 'preview') {
-						view.previewMode.rerender();
-					}
 				}
-			}
-		});
-
-		// Force a complete refresh of the view
-		if (view.getMode() === 'preview') {
-			view.previewMode.rerender();
-		} else {
-			view.editor.refresh();
-		}
-
-		// Force a complete refresh of the workspace
-		this.app.workspace.trigger('resize');
-
-		// Force syntax highlighting update
-		this.forceSyntaxHighlighting(view);
-	}
-
-	forceSyntaxHighlighting(view: MarkdownView) {
-		const codeBlocks = view.contentEl.querySelectorAll('pre code');
-		codeBlocks.forEach((codeBlock) => {
-			// Get the language class
-			const languageClass = Array.from(codeBlock.classList)
-				.find(cls => cls.startsWith('language-'));
-			
-			if (languageClass) {
-				// Remove and re-add the language class to force re-highlighting
-				codeBlock.classList.remove(languageClass);
-				setTimeout(() => {
-					codeBlock.classList.add(languageClass);
-				}, 0);
 			}
 		});
 	}
