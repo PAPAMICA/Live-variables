@@ -49,7 +49,7 @@ export default class LiveVariables extends Plugin {
 					codeBlock.setAttribute('data-variables', JSON.stringify(variables));
 
 					let displayCode = code;
-					variables.forEach(variable => {
+					variables.forEach((variable: string) => {
 						const value = this.vaultProperties.getProperty(variable);
 						if (value !== undefined) {
 							displayCode = displayCode.replace(
@@ -86,6 +86,23 @@ export default class LiveVariables extends Plugin {
 				this.refreshAffectedCodeBlocks(file);
 			})
 		);
+
+		// Register frontmatter change event
+		this.registerEvent(
+			this.app.metadataCache.on('changed', (file) => {
+				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+				if (view && view.file === file) {
+					// Force immediate update of the view
+					view.previewMode.rerender();
+					
+					// Update vault properties
+					this.vaultProperties.updateProperties(file);
+					
+					// Re-render variables
+					this.renderVariables(file);
+				}
+			})
+		);
 	}
 
 	stringifyValue(value: any): string {
@@ -104,32 +121,33 @@ export default class LiveVariables extends Plugin {
 	refreshAffectedCodeBlocks(file: TFile) {
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 		if (view && view.file === file) {
-			// Force a complete refresh of the view
+			// Force immediate update of the view
 			view.previewMode.rerender();
 			
-			// Update the vault properties
+			// Update vault properties
 			this.vaultProperties.updateProperties(file);
 			
-			// Re-render all variables
+			// Re-render variables
 			this.renderVariables(file);
 		}
 	}
 
 	renderVariables(file: TFile) {
-		// Re-render all code blocks
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 		if (view && view.file === file) {
+			// Get all code blocks in the current view
 			const codeBlocks = view.contentEl.querySelectorAll('pre code');
+			
 			codeBlocks.forEach((codeBlock) => {
-				const code = codeBlock.textContent || '';
-				const startDelimiter = this.settings.variableDelimiters.start;
-				const endDelimiter = this.settings.variableDelimiters.end;
-				const regex = new RegExp(`${startDelimiter}(.*?)${endDelimiter}`, 'g');
+				const originalCode = codeBlock.getAttribute('data-original-code') || codeBlock.textContent || '';
+				const variables = JSON.parse(codeBlock.getAttribute('data-variables') || '[]');
 				
-				const variables = [...code.matchAll(regex)].map(m => m[1]);
 				if (variables.length > 0) {
-					let displayCode = code;
-					variables.forEach(variable => {
+					let displayCode = originalCode;
+					const startDelimiter = this.settings.variableDelimiters.start;
+					const endDelimiter = this.settings.variableDelimiters.end;
+					
+					variables.forEach((variable: string) => {
 						const value = this.vaultProperties.getProperty(variable);
 						if (value !== undefined) {
 							displayCode = displayCode.replace(
@@ -138,6 +156,8 @@ export default class LiveVariables extends Plugin {
 							);
 						}
 					});
+					
+					// Update the code block content
 					codeBlock.textContent = displayCode;
 				}
 			});
