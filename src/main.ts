@@ -76,34 +76,35 @@ export default class LiveVariables extends Plugin {
 		// Register file change event
 		this.registerEvent(
 			this.app.vault.on('modify', (file: TFile) => {
-				this.handleFileChange(file);
+				this.refreshView(file);
 			})
 		);
 
-		// Register workspace change event
+		// Register metadata cache change event
 		this.registerEvent(
-			this.app.workspace.on('layout-change', () => {
-				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (view && view.file) {
-					this.handleFileChange(view.file);
-				}
+			this.app.metadataCache.on('changed', (file: TFile) => {
+				this.refreshView(file);
 			})
 		);
 	}
 
-	handleFileChange(file: TFile) {
+	refreshView(file: TFile) {
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 		if (view && view.file === file) {
-			// Update vault properties first
+			// Update vault properties
 			this.vaultProperties.updateProperties(file);
-			
-			// Force immediate update of the view
-			view.previewMode.rerender();
-			
-			// Use requestAnimationFrame to ensure the DOM is updated before we modify it
-			requestAnimationFrame(() => {
-				this.renderVariables(file);
-			});
+
+			// Force a complete refresh of the view
+			if (view.getMode() === 'preview') {
+				// For preview mode, we need to force a complete re-render
+				view.previewMode.rerender();
+			} else {
+				// For source mode, we need to refresh the editor
+				view.editor.refresh();
+			}
+
+			// Force a complete refresh of the workspace
+			this.app.workspace.trigger('resize');
 		}
 	}
 
