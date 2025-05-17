@@ -127,7 +127,7 @@ export const tryComputeValueFromQuery = (
 		const varQuery = parseQuery(query);
 		return highlightText(
 			addNewLineAtTheStartIfStartingWithMarkdown(
-				computeValue(varQuery, vaultProperties)
+				computeValue(varQuery, vaultProperties, settings)
 			),
 			settings
 		);
@@ -139,7 +139,8 @@ export const tryComputeValueFromQuery = (
 
 export const computeValue = (
 	varQuery: VarQuery,
-	vaultProperties: VaultProperties
+	vaultProperties: VaultProperties,
+	settings: LiveVariablesSettings
 ) => {
 	switch (varQuery.func) {
 		case Functions.SUM:
@@ -149,7 +150,7 @@ export const computeValue = (
 		case Functions.JS_FUNC:
 			return customJsFunc(varQuery.args, vaultProperties);
 		case Functions.CODE_BLOCK:
-			return codeBlockFunc(varQuery.args, vaultProperties);
+			return codeBlockFunc(varQuery.args, vaultProperties, settings);
 	}
 };
 
@@ -202,7 +203,8 @@ export const customJsFunc = (
 
 export const codeBlockFunc = (
 	args: string[],
-	vaultProperties: VaultProperties
+	vaultProperties: VaultProperties,
+	settings: LiveVariablesSettings
 ) => {
 	try {
 		let codeBlock = args[0];
@@ -210,9 +212,12 @@ export const codeBlockFunc = (
 		const values = args
 			.slice(2)
 			.map((id) => vaultProperties.getProperty(id));
+		const startDelimiter = settings.variableDelimiters.start;
+		const endDelimiter = settings.variableDelimiters.end;
+		const regex = new RegExp(`${startDelimiter}(.*?)${endDelimiter}`, 'g');
 		values.forEach((value) => {
 			codeBlock = codeBlock.replace(
-				/\{\{(.*?)\}\}/,
+				regex,
 				value?.toString() ?? ''
 			);
 		});

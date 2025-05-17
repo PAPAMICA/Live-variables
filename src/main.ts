@@ -117,7 +117,46 @@ export default class LiveVariables extends Plugin {
 			String.raw`<span query="([^"]+?)"><\/span>[\s\S]*?<span type="end"><\/span>`,
 			'g'
 		);
+		const codeBlockRe = new RegExp(
+			String.raw`\`\`\`(\w+)\n([\s\S]*?)\n\`\`\``,
+			'g'
+		);
 		this.app.vault.process(file, (data) => {
+			// Process code blocks first
+			data = data.replace(codeBlockRe, (match, lang, code) => {
+				const startDelimiter = this.settings.variableDelimiters.start;
+				const endDelimiter = this.settings.variableDelimiters.end;
+				const regex = new RegExp(`${startDelimiter}(.*?)${endDelimiter}`, 'g');
+				let processedCode = code;
+				let hasVariables = false;
+
+				// Find all variables in the code block
+				const variables = [...code.matchAll(regex)].map(m => m[1]);
+				
+				if (variables.length > 0) {
+					hasVariables = true;
+					// Replace each variable with its value
+					variables.forEach(variable => {
+						const value = this.vaultProperties.getProperty(variable);
+						if (value !== undefined) {
+							processedCode = processedCode.replace(
+								new RegExp(`${startDelimiter}${variable}${endDelimiter}`, 'g'),
+								value.toString()
+							);
+						}
+					});
+				}
+
+				// If no variables were found or processed, return the original code block
+				if (!hasVariables) {
+					return match;
+				}
+
+				// Return the processed code block
+				return `\`\`\`${lang}\n${processedCode}\n\`\`\``;
+			});
+
+			// Then process regular variable spans
 			[...data.matchAll(re)].forEach((match) => {
 				const escapedQuery = match[1];
 				const query = unescape(escapedQuery);

@@ -18,6 +18,13 @@ const LiveVariablesReactSettingTab: FC<LiveVariableReactSettingTabProps> = ({
 	);
 
 	const [hightlightText, setHighlightText] = useState<boolean>();
+	const [variableDelimiters, setVariableDelimiters] = useState<{
+		start: string;
+		end: string;
+	}>({
+		start: '{{',
+		end: '}}'
+	});
 
 	const columns: TableProps<CustomFunction>['columns'] = [
 		{
@@ -72,10 +79,17 @@ const LiveVariablesReactSettingTab: FC<LiveVariableReactSettingTabProps> = ({
 		plugin.saveSettings();
 	};
 
+	const updateVariableDelimiters = (newValue: { start: string; end: string }) => {
+		setVariableDelimiters(newValue);
+		plugin.settings.variableDelimiters = newValue;
+		plugin.saveSettings();
+	};
+
 	const loadDataSource = useCallback(async () => {
 		await plugin.loadSettings();
 		setCustomFunctions(plugin.settings.customFunctions);
 		setHighlightText(plugin.settings.highlightText);
+		setVariableDelimiters(plugin.settings.variableDelimiters);
 	}, [deleteFunction, updateFunction]);
 
 	useEffect(() => {
@@ -84,21 +98,45 @@ const LiveVariablesReactSettingTab: FC<LiveVariableReactSettingTabProps> = ({
 
 	return (
 		<ConfigProvider>
-			<div>
+			<div style={{ display: 'flex', flexDirection: 'column' }}>
 				<Setting heading name="Live Variables" />
 				<Setting
 					className="setting-item"
-					name={`Highlight Live Text`}
-					desc="Add highlighting style to inserted live variables. This will be applied only of the live text has no markdown styling."
-					style={{
-						borderBottom:
-							'0.5px solid var(--background-modifier-border)',
-					}}
+					name="Highlight Text"
+					desc="Highlight text in the editor"
 				>
-					<Setting.Checkbox
-						checked={hightlightText}
+					<Setting.Toggle
+						value={hightlightText}
 						onChange={updateHighlightText}
 					/>
+				</Setting>
+				<Setting
+					className="setting-item"
+					name="Variable Delimiters"
+					desc="Set the delimiters for variables in code blocks"
+				>
+					<div style={{ display: 'flex', gap: '10px' }}>
+						<Setting.Text
+							value={variableDelimiters.start}
+							placeHolder="Start delimiter"
+							onChange={(e) => {
+								updateVariableDelimiters({
+									...variableDelimiters,
+									start: e.target.value
+								});
+							}}
+						/>
+						<Setting.Text
+							value={variableDelimiters.end}
+							placeHolder="End delimiter"
+							onChange={(e) => {
+								updateVariableDelimiters({
+									...variableDelimiters,
+									end: e.target.value
+								});
+							}}
+						/>
+					</div>
 				</Setting>
 				<div className="setting-item-info" style={{ marginTop: 10 }}>
 					<div className="setting-item-name">Custom JS Functions</div>
