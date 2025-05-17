@@ -73,13 +73,6 @@ export default class LiveVariables extends Plugin {
 			});
 		});
 
-		// Register metadata cache change event
-		this.registerEvent(
-			this.app.metadataCache.on('changed', (file) => {
-				this.handleFileChange(file);
-			})
-		);
-
 		// Register file change event
 		this.registerEvent(
 			this.app.vault.on('modify', (file: TFile) => {
@@ -87,19 +80,12 @@ export default class LiveVariables extends Plugin {
 			})
 		);
 
-		// Register frontmatter change event
+		// Register workspace change event
 		this.registerEvent(
-			this.app.metadataCache.on('changed', (file) => {
+			this.app.workspace.on('layout-change', () => {
 				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (view && view.file === file) {
-					// Force immediate update of the view
-					view.previewMode.rerender();
-					
-					// Update vault properties
-					this.vaultProperties.updateProperties(file);
-					
-					// Re-render variables
-					this.renderVariables(file);
+				if (view && view.file) {
+					this.handleFileChange(view.file);
 				}
 			})
 		);
@@ -114,10 +100,10 @@ export default class LiveVariables extends Plugin {
 			// Force immediate update of the view
 			view.previewMode.rerender();
 			
-			// Use setTimeout to ensure the DOM is updated before we modify it
-			setTimeout(() => {
+			// Use requestAnimationFrame to ensure the DOM is updated before we modify it
+			requestAnimationFrame(() => {
 				this.renderVariables(file);
-			}, 0);
+			});
 		}
 	}
 
