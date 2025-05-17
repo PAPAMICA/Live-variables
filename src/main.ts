@@ -167,9 +167,8 @@ export default class LiveVariables extends Plugin {
 
 					// Store the original classes
 					const originalClasses = codeBlock.className;
-					const languageClass = originalClasses.split(' ').find(cls => cls.startsWith('language-'));
 					
-					// Create a temporary container
+					// Create a temporary container to preserve formatting
 					const tempContainer = document.createElement('div');
 					tempContainer.innerHTML = codeBlock.innerHTML;
 					
@@ -207,15 +206,6 @@ export default class LiveVariables extends Plugin {
 					
 					// Restore original classes
 					codeBlock.className = originalClasses;
-					
-					// Force re-highlight if we have a language
-					if (languageClass) {
-						// Remove and re-add the language class to force re-highlight
-						codeBlock.classList.remove(languageClass);
-						setTimeout(() => {
-							codeBlock.classList.add(languageClass);
-						}, 0);
-					}
 
 					// Update the copy button handler with the new display code
 					const copyButton = codeBlock.parentElement?.querySelector('.copy-code-button');
@@ -226,6 +216,11 @@ export default class LiveVariables extends Plugin {
 							e.stopPropagation();
 							navigator.clipboard.writeText(displayCode);
 						});
+					}
+
+					// Force Obsidian to re-apply syntax highlighting
+					if (view.getMode() === 'preview') {
+						view.previewMode.rerender();
 					}
 				}
 			}
