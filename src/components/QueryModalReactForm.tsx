@@ -10,6 +10,7 @@ import { QueryCodeBlock } from './QueryCodeBlock';
 import { QueryGet } from './QueryGet';
 import { QueryPredefinedSum } from './QueryPredefinedSum';
 import VaultProperties from 'src/VaultProperties';
+import { ReloadOutlined } from '@ant-design/icons';
 
 interface QueryModalFormProperties {
 	modal: QueryModal;
@@ -146,21 +147,31 @@ const QueryModalForm: React.FC<QueryModalFormProperties> = ({
 
 	return (
 		<div style={{ display: 'flex', flexDirection: 'column' }}>
-			<Setting
-				className="query-modal-setting-item"
-				name={'Query Function'}
-				desc={queryFuncOptions[queryFunc].desc}
-			>
-				<Setting.Dropdown
-					disabled={editMode}
-					options={queryFuncOptions}
-					onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-						const value = e.target.value;
-						setQueryFunc(value);
+			<div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+				<Setting
+					className="query-modal-setting-item"
+					name={'Query Function'}
+					desc={queryFuncOptions[queryFunc].desc}
+				>
+					<Setting.Dropdown
+						disabled={editMode}
+						options={queryFuncOptions}
+						onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+							const value = e.target.value;
+							setQueryFunc(value);
+						}}
+						value={queryFunc}
+					/>
+				</Setting>
+				<Setting.ExtraButton
+					icon={<ReloadOutlined />}
+					ariaLabel="Refresh Variables"
+					onClick={() => {
+						modal.plugin.vaultProperties.updateProperties(modal.file);
+						computeValue();
 					}}
-					value={queryFunc}
 				/>
-			</Setting>
+			</div>
 			{queryFunc === 'get' && (
 				<QueryGet
 					vaultProperties={vaultProperties}
