@@ -43,7 +43,7 @@ export default class LiveVariables extends Plugin {
 			);
 
 			let node: Text | null;
-			const nodesToReplace: { node: Text; newContent: string }[] = [];
+			const nodesToReplace: { node: Text; newContent: string; originalContent?: string }[] = [];
 
 			while ((node = walker.nextNode() as Text)) {
 				const text = node.textContent || '';
@@ -53,6 +53,7 @@ export default class LiveVariables extends Plugin {
 				
 				let modified = false;
 				let newText = text;
+				let originalText = text;
 
 				[...text.matchAll(regex)].forEach((match) => {
 					const variable = match[1];
@@ -68,12 +69,12 @@ export default class LiveVariables extends Plugin {
 				});
 
 				if (modified) {
-					nodesToReplace.push({ node, newContent: newText });
+					nodesToReplace.push({ node, newContent: newText, originalContent: originalText });
 				}
 			}
 
 			// Apply all replacements
-			nodesToReplace.forEach(({ node, newContent }) => {
+			nodesToReplace.forEach(({ node, newContent, originalContent }) => {
 				const tempDiv = document.createElement('div');
 				tempDiv.innerHTML = newContent;
 				const fragment = document.createDocumentFragment();
@@ -81,6 +82,24 @@ export default class LiveVariables extends Plugin {
 					fragment.appendChild(tempDiv.firstChild);
 				}
 				node.parentNode?.replaceChild(fragment, node);
+
+				// Store original content in data attribute if it's in a code block
+				if (originalContent && node.parentElement?.closest('pre code')) {
+					node.parentElement.closest('pre code')?.setAttribute('data-original-code', originalContent);
+				}
+			});
+
+			// Add copy button handlers
+			element.querySelectorAll('pre code').forEach((codeBlock) => {
+				const copyButton = codeBlock.parentElement?.querySelector('.copy-code-button');
+				if (copyButton) {
+					copyButton.addEventListener('click', (e) => {
+						e.preventDefault();
+						e.stopPropagation();
+						const originalCode = codeBlock.getAttribute('data-original-code') || codeBlock.textContent || '';
+						navigator.clipboard.writeText(originalCode);
+					});
+				}
 			});
 		});
 
