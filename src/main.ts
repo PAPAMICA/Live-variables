@@ -33,8 +33,43 @@ export default class LiveVariables extends Plugin {
 
 		this.addSettingTab(new LiveVariablesSettingTab(this.app, this));
 
-		// Register markdown post processor for all content
+		// Register markdown post processor for code blocks
 		this.registerMarkdownPostProcessor((element) => {
+			const codeBlocks = element.querySelectorAll('pre code');
+			codeBlocks.forEach((codeBlock) => {
+				const code = codeBlock.textContent || '';
+				const startDelimiter = this.settings.variableDelimiters.start;
+				const endDelimiter = this.settings.variableDelimiters.end;
+				const regex = new RegExp(`${startDelimiter}(.*?)${endDelimiter}`, 'g');
+				
+				let modified = false;
+				let newCode = code;
+
+				[...code.matchAll(regex)].forEach((match) => {
+					const variable = match[1];
+					const value = this.vaultProperties.getProperty(variable);
+					if (value !== undefined) {
+						const stringValue = this.stringifyValue(value);
+						const displayValue = this.settings.highlightDynamicVariables 
+							? `<span style="color: ${this.settings.dynamicVariableColor} !important; display: inline;">${stringValue}</span>`
+							: stringValue;
+						newCode = newCode.replace(match[0], displayValue);
+						modified = true;
+					}
+				});
+
+				if (modified) {
+					codeBlock.innerHTML = newCode;
+				}
+			});
+		});
+
+		// Register markdown post processor for all other content
+		this.registerMarkdownPostProcessor((element) => {
+			// Skip code blocks as they are handled separately
+			const codeBlocks = element.querySelectorAll('pre code');
+			const processedNodes = new Set(Array.from(codeBlocks));
+
 			// Process all text nodes in the document
 			const walker = document.createTreeWalker(
 				element,
@@ -46,6 +81,11 @@ export default class LiveVariables extends Plugin {
 			const nodesToReplace: { node: Text; newContent: string }[] = [];
 
 			while ((node = walker.nextNode() as Text)) {
+				// Skip if the node is inside a code block
+				if (node.parentElement && processedNodes.has(node.parentElement)) {
+					continue;
+				}
+
 				const text = node.textContent || '';
 				const startDelimiter = this.settings.variableDelimiters.start;
 				const endDelimiter = this.settings.variableDelimiters.end;
