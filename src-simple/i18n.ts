@@ -30,6 +30,7 @@ interface Translations {
         selectVariable: string;
         variableUpdated: string;
         updateError: string;
+        searchVariable: string;
     };
 }
 
@@ -63,7 +64,8 @@ const en: Translations = {
         noVariables: "No variables available. Add variables in the YAML frontmatter.",
         selectVariable: "Select a variable",
         variableUpdated: "Variable updated",
-        updateError: "Error updating variable"
+        updateError: "Error updating variable",
+        searchVariable: "Search variable..."
     }
 };
 
@@ -97,7 +99,8 @@ const fr: Translations = {
         noVariables: "Aucune variable disponible. Ajoutez des variables dans le frontmatter YAML.",
         selectVariable: "Sélectionner une variable",
         variableUpdated: "Variable mise à jour",
-        updateError: "Erreur lors de la mise à jour de la variable"
+        updateError: "Erreur lors de la mise à jour de la variable",
+        searchVariable: "Rechercher une variable..."
     }
 };
 

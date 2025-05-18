@@ -46,7 +46,9 @@ SSH connection: ssh {{user}}@{{ip}} -p {{port}}
    - Place your cursor where you want to insert the variable
    - Open the command palette (Ctrl/Cmd+P)
    - Type "Insert variable" and select the command
+   - Quickly search for a variable by typing in the search field
    - Choose the variable to insert from the list
+   - Use keyboard arrows to navigate and Enter to select
 
 4. To edit a variable:
    - In preview mode, simply click on any variable
@@ -73,7 +75,9 @@ Connexion SSH : ssh {{user}}@{{ip}} -p {{port}}
    - Placez votre curseur où vous souhaitez insérer la variable
    - Ouvrez la palette de commandes (Ctrl/Cmd+P)
    - Tapez "Insérer une variable" et sélectionnez la commande
+   - Recherchez rapidement une variable en tapant dans le champ de recherche
    - Choisissez la variable à insérer dans la liste
+   - Utilisez les flèches du clavier pour naviguer et Entrée pour sélectionner
 
 4. Pour modifier une variable :
    - En mode prévisualisation, cliquez simplement sur n'importe quelle variable

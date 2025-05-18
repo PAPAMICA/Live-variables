@@ -687,6 +687,9 @@ class VariableSelectionModal extends Modal {
 	private variables: {key: string, value: any}[];
 	private onChoose: (variable: {key: string, value: any}) => void;
 	private language: 'en' | 'fr';
+	private searchInput: HTMLInputElement;
+	private variableList: HTMLElement;
+	private displayedVariables: {key: string, value: any}[];
 	
 	constructor(
 		app: App, 
@@ -696,6 +699,7 @@ class VariableSelectionModal extends Modal {
 	) {
 		super(app);
 		this.variables = variables;
+		this.displayedVariables = [...variables]; // Clone the array
 		this.onChoose = onChoose;
 		this.language = language;
 	}
@@ -706,16 +710,100 @@ class VariableSelectionModal extends Modal {
 		
 		contentEl.createEl('h2', {text: t.ui.selectVariable});
 		
+		// Create search input
+		const searchContainer = contentEl.createEl('div', {cls: 'search-container'});
+		searchContainer.style.margin = '10px 0';
+		
+		this.searchInput = searchContainer.createEl('input', {
+			cls: 'search-input',
+			attr: {
+				type: 'text',
+				placeholder: t.ui.searchVariable
+			}
+		});
+		
+		// Style the search input
+		this.searchInput.style.width = '100%';
+		this.searchInput.style.padding = '8px';
+		this.searchInput.style.borderRadius = '4px';
+		this.searchInput.style.border = '1px solid var(--background-modifier-border)';
+		this.searchInput.style.backgroundColor = 'var(--background-primary)';
+		this.searchInput.style.color = 'var(--text-normal)';
+		
+		// Focus the search input when the modal opens
+		setTimeout(() => this.searchInput.focus(), 10);
+		
 		// Create a list of variables
-		const variableList = contentEl.createEl('div', {cls: 'variable-list'});
+		this.variableList = contentEl.createEl('div', {cls: 'variable-list'});
 		
 		// Style the list
-		variableList.style.maxHeight = '60vh';
-		variableList.style.overflowY = 'auto';
+		this.variableList.style.maxHeight = '60vh';
+		this.variableList.style.overflowY = 'auto';
+		this.variableList.style.marginTop = '10px';
+		
+		// Add search functionality
+		this.searchInput.addEventListener('input', () => {
+			this.filterVariables(this.searchInput.value);
+		});
+		
+		// Add keyboard navigation
+		this.searchInput.addEventListener('keydown', (e) => {
+			if (e.key === 'Enter') {
+				// Insert the first visible variable when pressing Enter
+				if (this.displayedVariables.length > 0) {
+					this.onChoose(this.displayedVariables[0]);
+					this.close();
+				}
+			} else if (e.key === 'Escape') {
+				// Close the modal when pressing Escape
+				this.close();
+			} else if (e.key === 'ArrowDown') {
+				// Move focus to the first variable item
+				const firstItem = this.variableList.querySelector('.variable-item');
+				if (firstItem) {
+					(firstItem as HTMLElement).focus();
+					e.preventDefault();
+				}
+			}
+		});
+		
+		// Render the initial list
+		this.renderVariableList();
+	}
+	
+	filterVariables(query: string) {
+		// Reset the displayed variables if query is empty
+		if (!query) {
+			this.displayedVariables = [...this.variables];
+		} else {
+			const lowerQuery = query.toLowerCase();
+			this.displayedVariables = this.variables.filter(variable => 
+				variable.key.toLowerCase().includes(lowerQuery) || 
+				String(variable.value).toLowerCase().includes(lowerQuery)
+			);
+		}
+		
+		// Re-render the list with the filtered variables
+		this.renderVariableList();
+	}
+	
+	renderVariableList() {
+		// Clear the current list
+		this.variableList.empty();
+		
+		// Check if we have any matching variables
+		if (this.displayedVariables.length === 0) {
+			const t = getTranslations(this.language);
+			this.variableList.createEl('div', {
+				cls: 'no-results',
+				text: t.ui.noVariables
+			}).style.padding = '8px';
+			return;
+		}
 		
 		// Add each variable as a clickable item
-		this.variables.forEach(variable => {
-			const varItem = variableList.createEl('div', {
+		this.displayedVariables.forEach(variable => {
+			const varItem = this.variableList.createEl('div', {
 				cls: 'variable-item',
 				text: `${variable.key}: ${this.formatValue(variable.value)}`
 			});
@@ -726,6 +814,32 @@ class VariableSelectionModal extends Modal {
 			varItem.style.borderRadius = '4px';
 			varItem.style.cursor = 'pointer';
 			varItem.style.backgroundColor = 'var(--background-secondary)';
+			
+			// Make item focusable
+			varItem.tabIndex = 0;
+			
+			// Add keyboard support
+			varItem.addEventListener('keydown', (e) => {
+				if (e.key === 'Enter' || e.key === ' ') {
+					this.onChoose(variable);
+					this.close();
+					e.preventDefault();
+				} else if (e.key === 'ArrowDown') {
+					const nextSibling = varItem.nextElementSibling;
+					if (nextSibling) {
+						(nextSibling as HTMLElement).focus();
+						e.preventDefault();
+					}
+				} else if (e.key === 'ArrowUp') {
+					const prevSibling = varItem.previousElementSibling;
+					if (prevSibling && prevSibling.classList.contains('variable-item')) {
+						(prevSibling as HTMLElement).focus();
+					} else {
+						this.searchInput.focus();
+					}
+					e.preventDefault();
+				}
+			});
 			
 			// Hover effect
 			varItem.addEventListener('mouseenter', () => {
