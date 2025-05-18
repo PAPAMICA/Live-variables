@@ -18,6 +18,7 @@ import { MarkdownView } from 'obsidian';
 export default class LiveVariables extends Plugin {
 	public settings: LiveVariablesSettings;
 	public vaultProperties: VaultProperties;
+	private styleElement: HTMLStyleElement | null = null;
 
 	async onload() {
 		await this.loadSettings();
@@ -32,6 +33,25 @@ export default class LiveVariables extends Plugin {
 		this.addCommand(queryVariablesCommand(this));
 
 		this.addSettingTab(new LiveVariablesSettingTab(this.app, this));
+		
+		// Add a CSS rule to ensure variable highlighting works correctly
+		this.addStylesheet(`
+			.dynamic-variable {
+				color: ${this.settings.dynamicVariableColor} !important;
+				display: inline !important;
+				background: none !important;
+				padding: 0 !important;
+				margin: 0 !important;
+				border: none !important;
+				font-weight: inherit !important;
+				font-style: inherit !important;
+				font-size: inherit !important;
+				font-family: inherit !important;
+				line-height: inherit !important;
+				text-decoration: inherit !important;
+				pointer-events: inherit !important;
+			}
+		`);
 
 		// Register markdown post processor for all content
 		this.registerMarkdownPostProcessor((element) => {
@@ -329,70 +349,49 @@ export default class LiveVariables extends Plugin {
 			if (originalCode) {
 				const variables = JSON.parse(codeBlock.getAttribute('data-variables') || '[]');
 				if (variables.length > 0) {
-					let displayCode = originalCode;
+					// First, get all the variable values for replacement
 					const startDelimiter = this.settings.variableDelimiters.start;
 					const endDelimiter = this.settings.variableDelimiters.end;
 					
-					// Create a temporary container to process HTML replacements
-					const tempDiv = document.createElement('div');
-					tempDiv.innerHTML = displayCode;
+					// Create a deep clone of the original code to work with
+					let processedCode = originalCode;
 					
-					// Get the text content
-					let textContent = tempDiv.textContent || displayCode;
+					// Safely escape special regex characters
+					const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+					const startDelimiterEscaped = escapeRegExp(startDelimiter);
+					const endDelimiterEscaped = escapeRegExp(endDelimiter);
 					
-					// Prepare to track all replacements with their positions
-					interface Replacement {
-						variable: string;
-						value: string;
-						startPos: number;
-						endPos: number;
-					}
+					// Store replacements as [search, replace] pairs
+					const replacements: [string, string][] = [];
 					
-					const replacements: Replacement[] = [];
-					
-					// Find all variable occurrences and their positions
+					// Process each variable
 					variables.forEach((variable: string) => {
 						const value = this.vaultProperties.getProperty(variable);
 						if (value !== undefined) {
-							const variableString = `${startDelimiter}${variable}${endDelimiter}`;
-							let startPos = 0;
+							const stringValue = this.stringifyValue(value);
+							const searchPattern = `${startDelimiter}${variable}${endDelimiter}`;
 							
-							// Find all occurrences of this variable
-							let matchIndex;
-							while ((matchIndex = textContent.indexOf(variableString, startPos)) !== -1) {
-								const stringValue = this.stringifyValue(value);
-								
-								replacements.push({
-									variable: variableString,
-									value: stringValue,
-									startPos: matchIndex,
-									endPos: matchIndex + variableString.length
-								});
-								
-								// Move past this match
-								startPos = matchIndex + variableString.length;
+							// Create replacement HTML
+							let replacement = stringValue;
+							if (this.settings.highlightDynamicVariables) {
+								replacement = `<span class="dynamic-variable">${stringValue}</span>`;
 							}
+							
+							// Add to replacements list
+							replacements.push([searchPattern, replacement]);
 						}
 					});
 					
-					// Sort replacements by position, from end to start to avoid offset issues
-					replacements.sort((a, b) => b.startPos - a.startPos);
-					
 					// Apply all replacements
-					let processedHtml = textContent;
-					replacements.forEach(replacement => {
-						const before = processedHtml.substring(0, replacement.startPos);
-						const after = processedHtml.substring(replacement.endPos);
-						
-						const displayValue = this.settings.highlightDynamicVariables 
-							? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor} !important">${replacement.value}</span>`
-							: replacement.value;
-							
-						processedHtml = before + displayValue + after;
+					replacements.forEach(([search, replace]) => {
+						// Create a regex with global flag for multiple replacements
+						const searchEscaped = escapeRegExp(search);
+						const regex = new RegExp(searchEscaped, 'g');
+						processedCode = processedCode.replace(regex, replace);
 					});
 					
-					// Update the code block content
-					codeBlock.innerHTML = processedHtml;
+					// Set the HTML directly
+					codeBlock.innerHTML = processedCode;
 				}
 			}
 		});
@@ -406,7 +405,7 @@ export default class LiveVariables extends Plugin {
 				if (value !== undefined) {
 					const stringValue = this.stringifyValue(value);
 					const displayValue = this.settings.highlightDynamicVariables 
-						? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor} !important">${stringValue}</span>`
+						? `<span class="dynamic-variable">${stringValue}</span>`
 						: stringValue;
 					span.innerHTML = displayValue;
 				}
@@ -441,69 +440,49 @@ export default class LiveVariables extends Plugin {
 				const variables = JSON.parse(codeBlock.getAttribute('data-variables') || '[]');
 				
 				if (variables.length > 0) {
+					// First, get all the variable values for replacement
 					const startDelimiter = this.settings.variableDelimiters.start;
 					const endDelimiter = this.settings.variableDelimiters.end;
 					
-					// Create a temporary container to process HTML replacements
-					const tempDiv = document.createElement('div');
-					tempDiv.innerHTML = originalCode;
+					// Create a deep clone of the original code to work with
+					let processedCode = originalCode;
 					
-					// Get the text content
-					let textContent = tempDiv.textContent || originalCode;
+					// Safely escape special regex characters
+					const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+					const startDelimiterEscaped = escapeRegExp(startDelimiter);
+					const endDelimiterEscaped = escapeRegExp(endDelimiter);
 					
-					// Prepare to track all replacements with their positions
-					interface Replacement {
-						variable: string;
-						value: string;
-						startPos: number;
-						endPos: number;
-					}
+					// Store replacements as [search, replace] pairs
+					const replacements: [string, string][] = [];
 					
-					const replacements: Replacement[] = [];
-					
-					// Find all variable occurrences and their positions
+					// Process each variable
 					variables.forEach((variable: string) => {
 						const value = this.vaultProperties.getProperty(variable);
 						if (value !== undefined) {
-							const variableString = `${startDelimiter}${variable}${endDelimiter}`;
-							let startPos = 0;
+							const stringValue = this.stringifyValue(value);
+							const searchPattern = `${startDelimiter}${variable}${endDelimiter}`;
 							
-							// Find all occurrences of this variable
-							let matchIndex;
-							while ((matchIndex = textContent.indexOf(variableString, startPos)) !== -1) {
-								const stringValue = this.stringifyValue(value);
-								
-								replacements.push({
-									variable: variableString,
-									value: stringValue,
-									startPos: matchIndex,
-									endPos: matchIndex + variableString.length
-								});
-								
-								// Move past this match
-								startPos = matchIndex + variableString.length;
+							// Create replacement HTML
+							let replacement = stringValue;
+							if (this.settings.highlightDynamicVariables) {
+								replacement = `<span class="dynamic-variable">${stringValue}</span>`;
 							}
+							
+							// Add to replacements list
+							replacements.push([searchPattern, replacement]);
 						}
 					});
 					
-					// Sort replacements by position, from end to start to avoid offset issues
-					replacements.sort((a, b) => b.startPos - a.startPos);
-					
 					// Apply all replacements
-					let processedHtml = textContent;
-					replacements.forEach(replacement => {
-						const before = processedHtml.substring(0, replacement.startPos);
-						const after = processedHtml.substring(replacement.endPos);
-						
-						const displayValue = this.settings.highlightDynamicVariables 
-							? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor} !important">${replacement.value}</span>`
-							: replacement.value;
-							
-						processedHtml = before + displayValue + after;
+					replacements.forEach(([search, replace]) => {
+						// Create a regex with global flag for multiple replacements
+						const searchEscaped = escapeRegExp(search);
+						const regex = new RegExp(searchEscaped, 'g');
+						processedCode = processedCode.replace(regex, replace);
 					});
 					
-					// Update the code block content
-					codeBlock.innerHTML = processedHtml;
+					// Set the HTML directly
+					codeBlock.innerHTML = processedCode;
 				}
 			});
 		}
@@ -627,7 +606,22 @@ export default class LiveVariables extends Plugin {
 		return `<span style="color: red">Error: ${message}</span>`;
 	};
 
-	onunload() {}
+	onunload() {
+		// Clean up any custom styles on unload
+		if (this.styleElement) {
+			this.styleElement.remove();
+			this.styleElement = null;
+		}
+	}
+
+	// Helper method to add stylesheet
+	private addStylesheet(css: string) {
+		// Create the style element
+		const styleEl = document.createElement('style');
+		styleEl.textContent = css;
+		document.head.appendChild(styleEl);
+		this.styleElement = styleEl;
+	}
 
 	async loadSettings() {
 		this.settings = Object.assign(
