@@ -191,28 +191,23 @@ export default class LiveVariables extends Plugin {
 			const codeEl = preEl.querySelector('code');
 			if (!codeEl) return;
 			
-			// Override the click event
-			copyButton.removeEventListener('click', this.getOriginalClickHandler(copyButton));
-			
-			copyButton.addEventListener('click', (e) => {
-				e.preventDefault();
-				e.stopPropagation();
+			// Create a static property on the element to store parsed text
+			// This helps us avoid re-parsing on each click
+			if (!codeEl.hasAttribute('data-processed-text')) {
+				// Store the original text on first setup
+				const originalText = codeEl.textContent || '';
+				codeEl.setAttribute('data-original-text', originalText);
 				
-				// Extract only the actual code content with variables replaced but without line numbers
-				// First, check if this is a CM6 editor (has line numbers in separate spans)
-				let renderedText = '';
+				// Process the text to remove line numbers
+				let processedText = this.processCodeText(originalText);
 				
-				// Check if the code block has variables
+				// If the code block has variables, process them separately
 				const variables = codeEl.getAttribute('data-variables');
-				
-				// Get original code if available (before variable replacement)
 				const originalCode = codeEl.getAttribute('data-original-code');
 				
-				// Different approaches based on the type of code block
 				if (originalCode && variables) {
-					// This is a code block managed by our plugin with variables
-					// We need to manually re-process the original code to replace variables
-					let processedCode = originalCode;
+					// This is a managed variable block, process it
+					let variableProcessed = originalCode;
 					const variableArray = JSON.parse(variables);
 					
 					if (variableArray.length > 0) {
@@ -223,7 +218,7 @@ export default class LiveVariables extends Plugin {
 							const value = this.vaultProperties.getProperty(variable);
 							if (value !== undefined) {
 								const stringValue = this.stringifyValue(value);
-								processedCode = processedCode.replace(
+								variableProcessed = variableProcessed.replace(
 									new RegExp(`${startDelimiter}${variable}${endDelimiter}`, 'g'),
 									stringValue
 								);
@@ -231,39 +226,23 @@ export default class LiveVariables extends Plugin {
 						});
 					}
 					
-					renderedText = processedCode;
-				} else {
-					// Regular code block or one without variables
-					// We need to remove the line numbers if present
-					const lineNumberWrapper = codeEl.querySelector('.cm-lineNumbers');
-					
-					if (lineNumberWrapper) {
-						// This is a CM6 code block with line numbers in a separate container
-						// Extract only the code content
-						const contentLines = codeEl.querySelectorAll('.cm-line');
-						renderedText = Array.from(contentLines)
-							.map(line => line.textContent || '')
-							.join('\n');
-					} else {
-						// Simple approach: get text content and try to remove line numbers
-						// Split into lines and process
-						const text = codeEl.textContent || '';
-						const lines = text.split('\n');
-						
-						// Check if lines start with numbers followed by whitespace
-						const hasLineNumbers = lines.every(line => /^\d+\s/.test(line.trim()));
-						
-						if (hasLineNumbers) {
-							// Remove line numbers
-							renderedText = lines
-								.map(line => line.replace(/^\s*\d+\s/, ''))
-								.join('\n');
-						} else {
-							// No line numbers, use as is
-							renderedText = text;
-						}
-					}
+					// Also remove any line numbers from this processed version
+					processedText = this.processCodeText(variableProcessed);
 				}
+				
+				// Store the processed text for copy operations
+				codeEl.setAttribute('data-processed-text', processedText);
+			}
+			
+			// Override the click event
+			copyButton.removeEventListener('click', this.getOriginalClickHandler(copyButton));
+			
+			copyButton.addEventListener('click', (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				
+				// Get the processed text (already has variables replaced and line numbers removed)
+				let renderedText = codeEl.getAttribute('data-processed-text') || codeEl.textContent || '';
 				
 				// Copy the rendered text to clipboard
 				navigator.clipboard.writeText(renderedText)
@@ -278,6 +257,38 @@ export default class LiveVariables extends Plugin {
 		});
 	}
 	
+	// Helper method to process code text and remove line numbers
+	processCodeText(text: string): string {
+		// Split the text into lines
+		const lines = text.split('\n');
+		
+		// First check for the specific case reported by the user
+		// Example: "1ssh test3@192.168.1.1 -p 222echo "test3""
+		const fixedLines = lines.map(line => {
+			// Case 1: Number at start followed directly by text (no space)
+			// Example: "1ssh" → "ssh"
+			let processed = line.replace(/^(\d+)([a-zA-Z])/, '$2');
+			
+			// If line doesn't seem to be formatted properly, check if it's a merged line with multiple commands
+			// For example: "1ssh user@host -p portecho "text""
+			if (processed.match(/\d+[a-zA-Z]/)) {
+				// Try to find places where numbers appear in the middle of text without spaces
+				// This could be a merged line where line numbers got mixed with content
+				processed = processed.replace(/(\d+)([a-zA-Z])/g, ' $2');
+			}
+			
+			return processed;
+		});
+		
+		// Rebuild the text
+		let processedText = fixedLines.join('\n');
+		
+		// As a final cleanup, ensure there are no random digit sequences at line starts
+		processedText = processedText.replace(/^\d+\s+/gm, '');
+		
+		return processedText;
+	}
+
 	getOriginalClickHandler(element: Element): EventListener {
 		// This is a placeholder - the original handler can't be directly accessed
 		// But we can remove all click listeners and add our own
