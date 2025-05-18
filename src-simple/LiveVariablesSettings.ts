@@ -1,5 +1,3 @@
-import { CustomFunction } from './types';
-
 export interface LiveVariablesSettings {
 	variableDelimiters: {
 		start: string;
