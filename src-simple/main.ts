@@ -1,4 +1,4 @@
-import { MarkdownView, Notice, Plugin, TFile } from 'obsidian';
+import { MarkdownView, Notice, Plugin, TFile, Modal, App } from 'obsidian';
 import { DEFAULT_SETTINGS, LiveVariablesSettings } from './LiveVariablesSettings';
 import { LiveVariablesSettingTab } from './LiveVariablesSettingTab';
 import VaultProperties from './VaultProperties';
@@ -13,6 +13,46 @@ export default class LiveVariables extends Plugin {
 		await this.loadSettings();
 
 		this.vaultProperties = new VaultProperties(this.app);
+
+		// Ajouter une commande pour insérer une variable
+		this.addCommand({
+			id: 'insert-variable',
+			name: 'Insérer une variable',
+			editorCallback: (editor, view) => {
+				if (!view) return;
+				
+				// Récupérer toutes les variables disponibles
+				const variables: {key: string, value: any}[] = [];
+				
+				// Variables du fichier courant
+				const currentFile = view.file;
+				if (currentFile) {
+					const frontmatter = this.app.metadataCache.getFileCache(currentFile)?.frontmatter;
+					if (frontmatter) {
+						Object.keys(frontmatter).forEach(key => {
+							variables.push({
+								key: key,
+								value: frontmatter[key]
+							});
+						});
+					}
+				}
+				
+				// Si aucune variable n'est disponible
+				if (variables.length === 0) {
+					new Notice("Aucune variable disponible. Ajoutez des variables dans le frontmatter YAML.");
+					return;
+				}
+				
+				// Créer le modal de sélection
+				const modal = new VariableSelectionModal(this.app, variables, (variable) => {
+					const variableText = `${this.settings.variableDelimiters.start}${variable.key}${this.settings.variableDelimiters.end}`;
+					editor.replaceSelection(variableText);
+				});
+				
+				modal.open();
+			}
+		});
 
 		this.addSettingTab(new LiveVariablesSettingTab(this.app, this));
 		
@@ -675,5 +715,77 @@ export default class LiveVariables extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+	}
+}
+
+// Classe pour le modal de sélection de variables
+class VariableSelectionModal extends Modal {
+	private variables: {key: string, value: any}[];
+	private onChoose: (variable: {key: string, value: any}) => void;
+	
+	constructor(app: App, variables: {key: string, value: any}[], onChoose: (variable: {key: string, value: any}) => void) {
+		super(app);
+		this.variables = variables;
+		this.onChoose = onChoose;
+	}
+	
+	onOpen() {
+		const {contentEl} = this;
+		contentEl.createEl('h2', {text: 'Sélectionner une variable'});
+		
+		// Créer une liste de variables
+		const variableList = contentEl.createEl('div', {cls: 'variable-list'});
+		
+		// Ajouter un style à la liste
+		variableList.style.maxHeight = '60vh';
+		variableList.style.overflowY = 'auto';
+		
+		// Ajouter chaque variable comme un élément cliquable
+		this.variables.forEach(variable => {
+			const varItem = variableList.createEl('div', {
+				cls: 'variable-item',
+				text: `${variable.key}: ${this.formatValue(variable.value)}`
+			});
+			
+			// Ajouter un style à l'élément
+			varItem.style.padding = '8px';
+			varItem.style.margin = '4px 0';
+			varItem.style.borderRadius = '4px';
+			varItem.style.cursor = 'pointer';
+			varItem.style.backgroundColor = 'var(--background-secondary)';
+			
+			// Effet de survol
+			varItem.addEventListener('mouseenter', () => {
+				varItem.style.backgroundColor = 'var(--background-modifier-hover)';
+			});
+			
+			varItem.addEventListener('mouseleave', () => {
+				varItem.style.backgroundColor = 'var(--background-secondary)';
+			});
+			
+			// Au clic, insérer la variable
+			varItem.addEventListener('click', () => {
+				this.onChoose(variable);
+				this.close();
+			});
+		});
+	}
+	
+	onClose() {
+		const {contentEl} = this;
+		contentEl.empty();
+	}
+	
+	formatValue(value: any): string {
+		if (value === null || value === undefined) return 'null';
+		if (typeof value === 'object') {
+			try {
+				return JSON.stringify(value).substring(0, 30) + (JSON.stringify(value).length > 30 ? '...' : '');
+			} catch {
+				return String(value);
+			}
+		}
+		const strValue = String(value);
+		return strValue.length > 30 ? strValue.substring(0, 30) + '...' : strValue;
 	}
 }
