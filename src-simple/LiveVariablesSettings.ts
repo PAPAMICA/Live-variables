@@ -5,6 +5,7 @@ export interface LiveVariablesSettings {
 	};
 	highlightDynamicVariables: boolean;
 	dynamicVariableColor: string;
+	language: 'en' | 'fr';
 }
 
 export const DEFAULT_SETTINGS: LiveVariablesSettings = {
@@ -14,4 +15,5 @@ export const DEFAULT_SETTINGS: LiveVariablesSettings = {
 	},
 	highlightDynamicVariables: true,
 	dynamicVariableColor: '#ff9500',
+	language: 'en'
 }; 

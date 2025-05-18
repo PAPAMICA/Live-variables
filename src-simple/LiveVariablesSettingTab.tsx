@@ -1,5 +1,6 @@
-import { App, PluginSettingTab, Setting } from 'obsidian';
+import { App, PluginSettingTab, Setting, DropdownComponent } from 'obsidian';
 import LiveVariables from './main';
+import { getTranslations } from './i18n';
 
 export class LiveVariablesSettingTab extends PluginSettingTab {
 	plugin: LiveVariables;
@@ -11,12 +12,30 @@ export class LiveVariablesSettingTab extends PluginSettingTab {
 
 	display(): void {
 		const { containerEl } = this;
+		const t = getTranslations(this.plugin.settings.language);
 
 		containerEl.empty();
 
+		// Language setting
 		new Setting(containerEl)
-			.setName('Délimiteurs de variables')
-			.setDesc('Définir les délimiteurs pour les variables')
+			.setName(t.settings.language.name)
+			.setDesc(t.settings.language.desc)
+			.addDropdown((dropdown: DropdownComponent) => {
+				dropdown
+					.addOption('en', 'English')
+					.addOption('fr', 'Français')
+					.setValue(this.plugin.settings.language)
+					.onChange(async (value: 'en' | 'fr') => {
+						this.plugin.settings.language = value;
+						await this.plugin.saveSettings();
+						this.display(); // Refresh display to update language
+					});
+			});
+
+		// Variable delimiters
+		new Setting(containerEl)
+			.setName(t.settings.delimiters.name)
+			.setDesc(t.settings.delimiters.desc)
 			.addText((text) =>
 				text
 					.setPlaceholder('{{')
@@ -36,9 +55,10 @@ export class LiveVariablesSettingTab extends PluginSettingTab {
 					})
 			);
 
+		// Highlight variables
 		new Setting(containerEl)
-			.setName('Surligner les variables dynamiques')
-			.setDesc('Surligner les variables avec une couleur pour les distinguer du texte normal')
+			.setName(t.settings.highlight.name)
+			.setDesc(t.settings.highlight.desc)
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.plugin.settings.highlightDynamicVariables)
@@ -48,9 +68,10 @@ export class LiveVariablesSettingTab extends PluginSettingTab {
 					})
 			);
 
+		// Highlight color
 		new Setting(containerEl)
-			.setName('Couleur de surlignage')
-			.setDesc('Choisir la couleur pour les variables surlignées')
+			.setName(t.settings.color.name)
+			.setDesc(t.settings.color.desc)
 			.addColorPicker((colorPicker) =>
 				colorPicker
 					.setValue(this.plugin.settings.dynamicVariableColor)

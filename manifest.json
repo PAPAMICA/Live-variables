@@ -3,7 +3,7 @@
 	"name": "Live Variables Lite",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Define variables in your note's frontmatter and reuse them throughout your content. Simplified version with editing and insertion features.",
+	"description": "Define variables in your note's frontmatter and reuse them throughout your content. Simplified version with editing and insertion features. Supports English and French.",
 	"author": "PAPAMICAplus",
 	"authorUrl": "https://github.com/PAPAMICAplus",
 	"isDesktopOnly": false

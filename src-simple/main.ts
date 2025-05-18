@@ -2,6 +2,7 @@ import { MarkdownView, Notice, Plugin, TFile, Modal, App } from 'obsidian';
 import { DEFAULT_SETTINGS, LiveVariablesSettings } from './LiveVariablesSettings';
 import { LiveVariablesSettingTab } from './LiveVariablesSettingTab';
 import VaultProperties from './VaultProperties';
+import { getTranslations } from './i18n';
 
 export default class LiveVariables extends Plugin {
 	public settings: LiveVariablesSettings;
@@ -14,17 +15,17 @@ export default class LiveVariables extends Plugin {
 
 		this.vaultProperties = new VaultProperties(this.app);
 
-		// Ajouter une commande pour insérer une variable
+		// Add command to insert a variable
 		this.addCommand({
 			id: 'insert-variable',
-			name: 'Insérer une variable',
+			name: getTranslations(this.settings.language).commands.insertVariable,
 			editorCallback: (editor, view) => {
 				if (!view) return;
 				
-				// Récupérer toutes les variables disponibles
+				// Get all available variables
 				const variables: {key: string, value: any}[] = [];
 				
-				// Variables du fichier courant
+				// Variables from current file
 				const currentFile = view.file;
 				if (currentFile) {
 					const frontmatter = this.app.metadataCache.getFileCache(currentFile)?.frontmatter;
@@ -38,17 +39,23 @@ export default class LiveVariables extends Plugin {
 					}
 				}
 				
-				// Si aucune variable n'est disponible
+				// If no variables are available
+				const t = getTranslations(this.settings.language);
 				if (variables.length === 0) {
-					new Notice("Aucune variable disponible. Ajoutez des variables dans le frontmatter YAML.");
+					new Notice(t.ui.noVariables);
 					return;
 				}
 				
-				// Créer le modal de sélection
-				const modal = new VariableSelectionModal(this.app, variables, (variable) => {
-					const variableText = `${this.settings.variableDelimiters.start}${variable.key}${this.settings.variableDelimiters.end}`;
-					editor.replaceSelection(variableText);
-				});
+				// Create the selection modal
+				const modal = new VariableSelectionModal(
+					this.app, 
+					variables, 
+					(variable) => {
+						const variableText = `${this.settings.variableDelimiters.start}${variable.key}${this.settings.variableDelimiters.end}`;
+						editor.replaceSelection(variableText);
+					},
+					this.settings.language
+				);
 				
 				modal.open();
 			}
@@ -56,7 +63,7 @@ export default class LiveVariables extends Plugin {
 
 		this.addSettingTab(new LiveVariablesSettingTab(this.app, this));
 		
-		// Add a CSS rule to ensure variable highlighting works correctly
+		// Add CSS styles for variable highlighting
 		this.addStylesheet(`
 			.dynamic-variable {
 				color: ${this.settings.dynamicVariableColor} !important;
@@ -140,7 +147,7 @@ export default class LiveVariables extends Plugin {
 			}
 		`);
 
-		// Register markdown post processor for all content
+		// Register markdown post processor to replace variables in preview mode
 		this.registerMarkdownPostProcessor((element) => {
 			// Process all text nodes in the document
 			const walker = document.createTreeWalker(
@@ -197,32 +204,35 @@ export default class LiveVariables extends Plugin {
 			this.modifyCodeBlockCopyButtons(element);
 		});
 
-		// Register file change event
+		// Register event handlers
+		this.registerEvents();
+	}
+	
+	// Register all event handlers
+	private registerEvents() {
+		// File change event
 		this.registerEvent(
 			this.app.vault.on('modify', (file: TFile) => {
 				// Update vault properties immediately
 				this.vaultProperties.updateProperties(file);
 				
-				// Get the active view
+				// Refresh the active view if it's the modified file
 				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 				if (view && view.file === file) {
-					// Force a complete refresh of the view
 					if (view.getMode() === 'preview') {
 						view.previewMode.rerender();
 					} else {
 						view.editor.refresh();
 					}
 					
-					// Force a complete refresh of the workspace
 					this.app.workspace.trigger('resize');
 				}
 			})
 		);
 
-		// Also listen for any workspace layout changes to ensure we catch new code blocks
+		// Layout change event
 		this.registerEvent(
 			this.app.workspace.on('layout-change', () => {
-				// Find all views and modify their code blocks
 				this.app.workspace.iterateRootLeaves((leaf) => {
 					if (leaf.view instanceof MarkdownView && leaf.view.getMode() === 'preview') {
 						this.modifyCodeBlockCopyButtons(leaf.view.containerEl);
@@ -231,16 +241,13 @@ export default class LiveVariables extends Plugin {
 			})
 		);
 		
-		// Listen for active leaf changes to update code blocks in the newly active view
+		// Active leaf change event
 		this.registerEvent(
 			this.app.workspace.on('active-leaf-change', (leaf) => {
-				if (leaf && leaf.view) {
-					if (leaf.view instanceof MarkdownView && leaf.view.getMode() === 'preview') {
-						setTimeout(() => {
-							// Small delay to ensure the DOM is fully updated
-							this.modifyCodeBlockCopyButtons(leaf.view.containerEl);
-						}, 100);
-					}
+				if (leaf?.view instanceof MarkdownView && leaf.view.getMode() === 'preview') {
+					setTimeout(() => {
+						this.modifyCodeBlockCopyButtons(leaf.view.containerEl);
+					}, 100);
 				}
 			})
 		);
@@ -254,14 +261,11 @@ export default class LiveVariables extends Plugin {
 				e.preventDefault();
 				e.stopPropagation();
 				
-				// Get the variable name
 				const variable = varEl.getAttribute('data-variable');
 				if (!variable) return;
 				
-				// Get the current value
 				const currentValue = this.vaultProperties.getProperty(variable) || '';
 				
-				// Create the tooltip
 				this.showVariableEditTooltip(varEl as HTMLElement, variable, currentValue.toString());
 			});
 		});
@@ -272,17 +276,19 @@ export default class LiveVariables extends Plugin {
 		// Close any existing tooltip
 		this.closeActiveTooltip();
 		
+		const t = getTranslations(this.settings.language);
+		
 		// Create tooltip
 		const tooltip = document.createElement('div');
 		tooltip.className = 'variable-edit-tooltip';
 		
 		// Create tooltip content
 		tooltip.innerHTML = `
-			<h5>Modifier la variable: ${variable}</h5>
-			<input type="text" value="${currentValue.replace(/"/g, '&quot;')}" placeholder="Nouvelle valeur" />
+			<h5>${t.ui.editVariable}: ${variable}</h5>
+			<input type="text" value="${currentValue.replace(/"/g, '&quot;')}" placeholder="${t.ui.newValue}" />
 			<div class="tooltip-buttons">
-				<button class="cancel">Annuler</button>
-				<button class="primary save">Enregistrer</button>
+				<button class="cancel">${t.ui.cancel}</button>
+				<button class="primary save">${t.ui.save}</button>
 			</div>
 		`;
 		
@@ -337,10 +343,8 @@ export default class LiveVariables extends Plugin {
 	
 	// Handle clicks outside the tooltip to close it
 	handleClickOutside = (e: MouseEvent) => {
-		if (this.activeTooltip && e.target) {
-			if (!this.activeTooltip.contains(e.target as Node)) {
-				this.closeActiveTooltip();
-			}
+		if (this.activeTooltip && e.target && !this.activeTooltip.contains(e.target as Node)) {
+			this.closeActiveTooltip();
 		}
 	}
 	
@@ -355,153 +359,119 @@ export default class LiveVariables extends Plugin {
 	
 	// Update a variable value and refresh all instances
 	async updateVariableValue(variable: string, newValue: string) {
+		const t = getTranslations(this.settings.language);
 		try {
-			// Mettre à jour la variable (attendre que l'opération soit terminée)
+			// Update the variable (temporary and permanent)
 			await this.vaultProperties.temporaryUpdateVariable(variable, newValue);
 			
-			// Notifier l'utilisateur
-			new Notice(`Variable "${variable}" mise à jour`);
+			// Notify the user
+			new Notice(`${t.ui.variableUpdated}: "${variable}"`);
 			
-			// Forcer le rafraîchissement de la vue active
+			// Force refresh of the active view
 			const activeLeaf = this.app.workspace.activeLeaf;
-			if (activeLeaf && activeLeaf.view instanceof MarkdownView && activeLeaf.view.file) {
-				const file = activeLeaf.view.file;
+			if (activeLeaf?.view instanceof MarkdownView && activeLeaf.view.file) {
+				this.refreshView(activeLeaf.view.file);
 				
-				// 1. Rafraîchir la vue active
-				this.refreshView(file);
-				
-				// 2. Forcer une reconstruction complète du DOM pour les variables affichées
+				// Force a complete rebuild of the DOM for displayed variables
 				setTimeout(() => {
 					if (activeLeaf.view instanceof MarkdownView) {
 						const view = activeLeaf.view;
 						
-						// Forcer un rerendu complet si en mode prévisualisation
 						if (view.getMode() === 'preview') {
 							view.previewMode.rerender(true);
 							
-							// Attendre que le DOM soit mis à jour puis réappliquer les changements
+							// Wait for DOM to update then reapply changes
 							setTimeout(() => {
 								this.updateCodeBlocksWithVariables(view);
-								
-								// Réappliquer les gestionnaires de clics pour les variables mises à jour
 								this.setupVariableEditHandlers(view.containerEl);
-								
-								// Mettre à jour les boutons de copie
 								this.modifyCodeBlockCopyButtons(view.containerEl);
 							}, 100);
 						}
 						
-						// Déclencher un événement global pour forcer la mise à jour
 						this.app.workspace.trigger('live-variables:variable-updated', variable, newValue);
 					}
 				}, 50);
 			}
 			
-			// Aussi rafraîchir toutes les autres vues qui pourraient utiliser cette variable
+			// Also refresh all other views that might use this variable
 			this.app.workspace.iterateRootLeaves(leaf => {
 				if (leaf !== this.app.workspace.activeLeaf && 
 					leaf.view instanceof MarkdownView && 
 					leaf.view.file) {
-					// Rafraîchir chaque vue ouverte
 					this.refreshView(leaf.view.file);
 				}
 			});
 			
-			// Forcer un rafraîchissement global après un court délai
+			// Force a global refresh after a short delay
 			setTimeout(() => {
 				this.forceGlobalRefresh();
 			}, 200);
 		} catch (error) {
-			console.error("Erreur lors de la mise à jour de la variable:", error);
-			new Notice(`Erreur lors de la mise à jour de la variable: ${error.message}`);
+			console.error(`${t.ui.updateError}:`, error);
+			new Notice(`${t.ui.updateError}: ${error.message}`);
 		}
 	}
 	
 	// Force a global refresh of all views
 	forceGlobalRefresh() {
-		// Essai de différentes approches pour forcer le rafraîchissement complet
-		
-		// 1. Forcer un redimensionnement, ce qui déclenche souvent un reflow
+		// Force a resize, which often triggers a reflow
 		this.app.workspace.trigger('resize');
 		
-		// 2. Forcer un recalcul des propriétés du vault
+		// Force a recalculation of vault properties
 		this.vaultProperties.updateVaultProperties();
 		
-		// 3. Rafraîchir toutes les vues markdown
+		// Refresh all markdown views
 		this.app.workspace.iterateAllLeaves(leaf => {
 			if (leaf.view instanceof MarkdownView) {
 				if (leaf.view.getMode() === 'preview') {
-					// Forcer le rendu de la prévisualisation
 					leaf.view.previewMode.rerender(true);
 				} else {
-					// Rafraîchir l'éditeur
 					leaf.view.editor.refresh();
 				}
 			}
 		});
 	}
 	
+	// Refresh a specific view
 	refreshView(file: TFile) {
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 		if (view && view.file === file) {
-			// Mettre à jour les propriétés du vault
 			this.vaultProperties.updateProperties(file);
 
-			// Force a complete refresh of the view
 			if (view.getMode() === 'preview') {
-				// Pour le mode prévisualisation, forcer un rerendu complet
 				view.previewMode.rerender(true);
 				
-				// Attendre que le DOM soit mis à jour
 				setTimeout(() => {
-					// Mettre à jour tous les blocs de code avec variables
 					this.updateCodeBlocksWithVariables(view);
-					
-					// Réinstaller les gestionnaires d'édition au clic
 					this.setupVariableEditHandlers(view.contentEl);
-					
-					// Mettre à jour les boutons de copie
 					this.modifyCodeBlockCopyButtons(view.contentEl);
-					
-					// Forcer un rafraîchissement complet de l'espace de travail
 					this.app.workspace.trigger('resize');
 				}, 100);
 			} else {
-				// Pour le mode source, rafraîchir l'éditeur
 				view.editor.refresh();
-				
-				// Forcer un rafraîchissement complet de l'espace de travail
 				this.app.workspace.trigger('resize');
 			}
 		} else {
-			// Si la vue active n'est pas celle du fichier demandé,
-			// rechercher dans toutes les feuilles pour trouver la bonne vue
+			// If the active view is not the requested file,
+			// search all leaves to find the right view
 			let foundView = false;
 			this.app.workspace.iterateAllLeaves(leaf => {
 				if (!foundView && leaf.view instanceof MarkdownView && leaf.view.file === file) {
 					foundView = true;
-					// Mettre à jour les propriétés du vault
 					this.vaultProperties.updateProperties(file);
 					
-					// Forcer un rerendu complet si en mode prévisualisation
 					if (leaf.view.getMode() === 'preview') {
 						leaf.view.previewMode.rerender(true);
 						
-						// Attendre que le DOM soit mis à jour
 						setTimeout(() => {
-							// Mettre à jour tous les blocs de code avec variables
 							this.updateCodeBlocksWithVariables(leaf.view as MarkdownView);
 							
-							// Réinstaller les gestionnaires d'édition au clic
 							if (leaf.view instanceof MarkdownView) {
 								this.setupVariableEditHandlers(leaf.view.containerEl);
-								
-								// Mettre à jour les boutons de copie
 								this.modifyCodeBlockCopyButtons(leaf.view.containerEl);
 							}
 						}, 100);
 					} else {
-						// Pour le mode source, rafraîchir l'éditeur
 						leaf.view.editor.refresh();
 					}
 				}
@@ -509,8 +479,8 @@ export default class LiveVariables extends Plugin {
 		}
 	}
 
+	// Update code blocks with variables
 	updateCodeBlocksWithVariables(view: MarkdownView) {
-		// Update code blocks
 		const codeBlocks = view.contentEl.querySelectorAll('pre code');
 		codeBlocks.forEach((codeBlock) => {
 			const originalCode = codeBlock.getAttribute('data-original-code');
@@ -555,6 +525,7 @@ export default class LiveVariables extends Plugin {
 		});
 	}
 
+	// Convert any value to string
 	stringifyValue(value: any): string {
 		if (value === null) return 'null';
 		if (value === undefined) return 'undefined';
@@ -568,21 +539,17 @@ export default class LiveVariables extends Plugin {
 		return String(value);
 	}
 	
+	// Override copy buttons in code blocks to copy variable values
 	modifyCodeBlockCopyButtons(element: HTMLElement) {
-		// Find all code blocks with copy buttons in the given element
 		const preElements = element.querySelectorAll('pre');
 		
 		preElements.forEach((preEl) => {
-			// Find the copy button within this pre element
 			const copyButton = preEl.querySelector('.copy-code-button');
 			if (!copyButton) return;
 			
-			// Find the code element
 			const codeEl = preEl.querySelector('code');
 			if (!codeEl) return;
 			
-			// Create a static property on the element to store parsed text
-			// This helps us avoid re-parsing on each click
 			if (!codeEl.hasAttribute('data-processed-text')) {
 				// Store the original text on first setup
 				const originalText = codeEl.textContent || '';
@@ -636,9 +603,6 @@ export default class LiveVariables extends Plugin {
 				
 				// Copy the rendered text to clipboard
 				navigator.clipboard.writeText(renderedText)
-					.then(() => {
-						// Don't show a notice for successful copy - it's what users expect
-					})
 					.catch(error => {
 						console.error('Failed to copy text: ', error);
 						new Notice('Failed to copy text');
@@ -679,32 +643,31 @@ export default class LiveVariables extends Plugin {
 		return processedText;
 	}
 	
+	// Helper method to get original click handler (placeholder)
 	getOriginalClickHandler(element: Element): EventListener {
 		// This is a placeholder - the original handler can't be directly accessed
-		// But we can remove all click listeners and add our own
 		return () => {}; 
 	}
 
+	// Clean up on plugin unload
 	onunload() {
-		// Clean up any custom styles on unload
 		if (this.styleElement) {
 			this.styleElement.remove();
 			this.styleElement = null;
 		}
 		
-		// Close any open tooltips
 		this.closeActiveTooltip();
 	}
 
 	// Helper method to add stylesheet
 	private addStylesheet(css: string) {
-		// Create the style element
 		const styleEl = document.createElement('style');
 		styleEl.textContent = css;
 		document.head.appendChild(styleEl);
 		this.styleElement = styleEl;
 	}
 
+	// Load settings from storage
 	async loadSettings() {
 		this.settings = Object.assign(
 			{},
@@ -713,48 +676,58 @@ export default class LiveVariables extends Plugin {
 		);
 	}
 
+	// Save settings to storage
 	async saveSettings() {
 		await this.saveData(this.settings);
 	}
 }
 
-// Classe pour le modal de sélection de variables
+// Modal for variable selection
 class VariableSelectionModal extends Modal {
 	private variables: {key: string, value: any}[];
 	private onChoose: (variable: {key: string, value: any}) => void;
+	private language: 'en' | 'fr';
 	
-	constructor(app: App, variables: {key: string, value: any}[], onChoose: (variable: {key: string, value: any}) => void) {
+	constructor(
+		app: App, 
+		variables: {key: string, value: any}[], 
+		onChoose: (variable: {key: string, value: any}) => void,
+		language: 'en' | 'fr'
+	) {
 		super(app);
 		this.variables = variables;
 		this.onChoose = onChoose;
+		this.language = language;
 	}
 	
 	onOpen() {
 		const {contentEl} = this;
-		contentEl.createEl('h2', {text: 'Sélectionner une variable'});
+		const t = getTranslations(this.language);
 		
-		// Créer une liste de variables
+		contentEl.createEl('h2', {text: t.ui.selectVariable});
+		
+		// Create a list of variables
 		const variableList = contentEl.createEl('div', {cls: 'variable-list'});
 		
-		// Ajouter un style à la liste
+		// Style the list
 		variableList.style.maxHeight = '60vh';
 		variableList.style.overflowY = 'auto';
 		
-		// Ajouter chaque variable comme un élément cliquable
+		// Add each variable as a clickable item
 		this.variables.forEach(variable => {
 			const varItem = variableList.createEl('div', {
 				cls: 'variable-item',
 				text: `${variable.key}: ${this.formatValue(variable.value)}`
 			});
 			
-			// Ajouter un style à l'élément
+			// Style the item
 			varItem.style.padding = '8px';
 			varItem.style.margin = '4px 0';
 			varItem.style.borderRadius = '4px';
 			varItem.style.cursor = 'pointer';
 			varItem.style.backgroundColor = 'var(--background-secondary)';
 			
-			// Effet de survol
+			// Hover effect
 			varItem.addEventListener('mouseenter', () => {
 				varItem.style.backgroundColor = 'var(--background-modifier-hover)';
 			});
@@ -763,7 +736,7 @@ class VariableSelectionModal extends Modal {
 				varItem.style.backgroundColor = 'var(--background-secondary)';
 			});
 			
-			// Au clic, insérer la variable
+			// On click, insert the variable
 			varItem.addEventListener('click', () => {
 				this.onChoose(variable);
 				this.close();
