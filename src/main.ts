@@ -46,11 +46,6 @@ export default class LiveVariables extends Plugin {
 			const nodesToReplace: { node: Text; newContent: string }[] = [];
 
 			while ((node = walker.nextNode() as Text)) {
-				// Skip if the node is inside a code block
-				if (node.parentElement?.closest('pre code')) {
-					continue;
-				}
-
 				const text = node.textContent || '';
 				const startDelimiter = this.settings.variableDelimiters.start;
 				const endDelimiter = this.settings.variableDelimiters.end;
@@ -87,71 +82,9 @@ export default class LiveVariables extends Plugin {
 				}
 				node.parentNode?.replaceChild(fragment, node);
 			});
-
-			// Process code blocks separately
-			const codeBlocks = element.querySelectorAll('pre code');
-			codeBlocks.forEach((codeBlock) => {
-				const text = codeBlock.textContent || '';
-				const startDelimiter = this.settings.variableDelimiters.start;
-				const endDelimiter = this.settings.variableDelimiters.end;
-				const regex = new RegExp(`${startDelimiter}(.*?)${endDelimiter}`, 'g');
-				
-				let modified = false;
-				let newText = text;
-				const originalCode = text;
-
-				const matchedVariables = [...text.matchAll(regex)].map(match => match[1]);
-				if (matchedVariables.length > 0) {
-					codeBlock.setAttribute('data-original-code', originalCode);
-					codeBlock.setAttribute('data-variables', JSON.stringify(matchedVariables));
-				}
-
-				[...text.matchAll(regex)].forEach((match) => {
-					const variable = match[1];
-					const value = this.vaultProperties.getProperty(variable);
-					if (value !== undefined) {
-						const stringValue = this.stringifyValue(value);
-						newText = newText.replace(match[0], stringValue);
-						modified = true;
-					}
-				});
-
-				if (modified) {
-					codeBlock.textContent = newText;
-					
-					// Add copy button if not already present
-					if (codeBlock.parentElement && !codeBlock.parentElement.querySelector('.copy-code-button')) {
-						const copyButton = document.createElement('button');
-						copyButton.className = 'copy-code-button';
-						copyButton.innerText = 'Copy';
-						copyButton.style.position = 'absolute';
-						copyButton.style.top = '5px';
-						copyButton.style.right = '5px';
-						copyButton.style.zIndex = '1';
-						copyButton.style.fontSize = '12px';
-						copyButton.style.padding = '2px 5px';
-						copyButton.style.background = '#f5f5f5';
-						copyButton.style.border = '1px solid #ddd';
-						copyButton.style.borderRadius = '3px';
-						copyButton.style.cursor = 'pointer';
-						
-						codeBlock.parentElement.style.position = 'relative';
-						
-						copyButton.addEventListener('click', () => {
-							navigator.clipboard.writeText(newText).then(() => {
-								copyButton.innerText = 'Copied!';
-								setTimeout(() => {
-									copyButton.innerText = 'Copy';
-								}, 2000);
-							}).catch(err => {
-								console.error('Failed to copy: ', err);
-							});
-						});
-						
-						codeBlock.parentElement.appendChild(copyButton);
-					}
-				}
-			});
+			
+			// Override code block copy functionality
+			this.modifyCodeBlockCopyButtons(element);
 		});
 
 		// Register file change event
@@ -217,6 +150,82 @@ export default class LiveVariables extends Plugin {
 				}
 			})
 		);
+		
+		// Also listen for any workspace layout changes to ensure we catch new code blocks
+		this.registerEvent(
+			this.app.workspace.on('layout-change', () => {
+				// Find all views and modify their code blocks
+				this.app.workspace.iterateRootLeaves((leaf) => {
+					if (leaf.view instanceof MarkdownView && leaf.view.getMode() === 'preview') {
+						this.modifyCodeBlockCopyButtons(leaf.view.containerEl);
+					}
+				});
+			})
+		);
+		
+		// Listen for active leaf changes to update code blocks in the newly active view
+		this.registerEvent(
+			this.app.workspace.on('active-leaf-change', (leaf) => {
+				if (leaf && leaf.view) {
+					if (leaf.view instanceof MarkdownView && leaf.view.getMode() === 'preview') {
+						setTimeout(() => {
+							// Small delay to ensure the DOM is fully updated
+							this.modifyCodeBlockCopyButtons(leaf.view.containerEl);
+						}, 100);
+					}
+				}
+			})
+		);
+	}
+	
+	modifyCodeBlockCopyButtons(element: HTMLElement) {
+		// Find all code blocks with copy buttons in the given element
+		const preElements = element.querySelectorAll('pre');
+		
+		preElements.forEach((preEl) => {
+			// Find the copy button within this pre element
+			const copyButton = preEl.querySelector('.copy-code-button');
+			if (!copyButton) return;
+			
+			// Find the code element
+			const codeEl = preEl.querySelector('code');
+			if (!codeEl) return;
+			
+			// Override the click event
+			copyButton.removeEventListener('click', this.getOriginalClickHandler(copyButton));
+			
+			copyButton.addEventListener('click', (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				
+				// Get the rendered text content (with variables replaced)
+				let renderedText = codeEl.textContent || '';
+				
+				// Handle specifically code blocks created by the plugin
+				// Look for the data-variables attribute to identify our special code blocks
+				const variables = codeEl.getAttribute('data-variables');
+				if (variables) {
+					// This is a code block managed by the LiveVariables plugin
+					// We already have the rendered text in the textContent
+				}
+				
+				// Copy the rendered text to clipboard
+				navigator.clipboard.writeText(renderedText)
+					.then(() => {
+						// Don't show a notice for successful copy - it's what users expect
+					})
+					.catch(error => {
+						console.error('Failed to copy text: ', error);
+						new Notice('Failed to copy text');
+					});
+			});
+		});
+	}
+	
+	getOriginalClickHandler(element: Element): EventListener {
+		// This is a placeholder - the original handler can't be directly accessed
+		// But we can remove all click listeners and add our own
+		return () => {}; 
 	}
 
 	refreshView(file: TFile) {
@@ -239,6 +248,9 @@ export default class LiveVariables extends Plugin {
 
 			// Update all code blocks with variables
 			this.updateCodeBlocksWithVariables(view);
+			
+			// Also update the copy buttons
+			this.modifyCodeBlockCopyButtons(view.contentEl);
 		}
 	}
 
@@ -246,63 +258,27 @@ export default class LiveVariables extends Plugin {
 		// Update code blocks
 		const codeBlocks = view.contentEl.querySelectorAll('pre code');
 		codeBlocks.forEach((codeBlock) => {
-			const originalCode = codeBlock.getAttribute('data-original-code') || codeBlock.textContent || '';
-			
-			// Store original code if not already stored
-			if (!codeBlock.getAttribute('data-original-code')) {
-				codeBlock.setAttribute('data-original-code', originalCode);
-				
-				// Extract variables from the code
-				const startDelimiter = this.settings.variableDelimiters.start;
-				const endDelimiter = this.settings.variableDelimiters.end;
-				const regex = new RegExp(`${startDelimiter}(.*?)${endDelimiter}`, 'g');
-				const variables = [...originalCode.matchAll(regex)].map(match => match[1]);
-				codeBlock.setAttribute('data-variables', JSON.stringify(variables));
-			}
-			
-			const variables = JSON.parse(codeBlock.getAttribute('data-variables') || '[]');
-			if (variables.length > 0) {
-				let displayCode = originalCode;
-				variables.forEach((variable: string) => {
-					const value = this.vaultProperties.getProperty(variable);
-					if (value !== undefined) {
-						const stringValue = this.stringifyValue(value);
-						const displayValue = this.settings.highlightDynamicVariables 
-							? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor} !important">${stringValue}</span>`
-							: stringValue;
-						displayCode = displayCode.replace(
-							new RegExp(`${this.settings.variableDelimiters.start}${variable}${this.settings.variableDelimiters.end}`, 'g'),
-							displayValue
-						);
-					}
-				});
-				codeBlock.innerHTML = displayCode;
-			}
-		});
-
-		// Add copy event listener to code blocks
-		codeBlocks.forEach((codeBlock) => {
-			codeBlock.addEventListener('copy', (e: ClipboardEvent) => {
-				const originalCode = codeBlock.getAttribute('data-original-code');
+			const originalCode = codeBlock.getAttribute('data-original-code');
+			if (originalCode) {
 				const variables = JSON.parse(codeBlock.getAttribute('data-variables') || '[]');
-				
-				if (originalCode && variables.length > 0) {
+				if (variables.length > 0) {
 					let displayCode = originalCode;
 					variables.forEach((variable: string) => {
 						const value = this.vaultProperties.getProperty(variable);
 						if (value !== undefined) {
 							const stringValue = this.stringifyValue(value);
+							const displayValue = this.settings.highlightDynamicVariables 
+								? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor} !important">${stringValue}</span>`
+								: stringValue;
 							displayCode = displayCode.replace(
 								new RegExp(`${this.settings.variableDelimiters.start}${variable}${this.settings.variableDelimiters.end}`, 'g'),
-								stringValue
+								displayValue
 							);
 						}
 					});
-					
-					e.clipboardData?.setData('text/plain', displayCode);
-					e.preventDefault();
+					codeBlock.innerHTML = displayCode;
 				}
-			});
+			}
 		});
 
 		// Update all spans with variables
@@ -320,6 +296,9 @@ export default class LiveVariables extends Plugin {
 				}
 			}
 		});
+		
+		// After updating variables, also update the copy buttons
+		this.modifyCodeBlockCopyButtons(view.contentEl);
 	}
 
 	stringifyValue(value: any): string {
