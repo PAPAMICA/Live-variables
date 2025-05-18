@@ -205,16 +205,24 @@ export default class LiveVariables extends Plugin {
 				const variables = codeEl.getAttribute('data-variables');
 				const originalCode = codeEl.getAttribute('data-original-code');
 				
-				if (originalCode && variables) {
+				if (originalCode) {
 					// This is a managed variable block, process it using same logic as updateCodeBlocksWithVariables
-					const variableArray = JSON.parse(variables);
+					// Manually look for all variable patterns in the original code
+					const startDelimiter = this.settings.variableDelimiters.start;
+					const endDelimiter = this.settings.variableDelimiters.end;
+					const regex = new RegExp(`${this.escapeRegExp(startDelimiter)}([^${this.escapeRegExp(endDelimiter)}]+)${this.escapeRegExp(endDelimiter)}`, 'g');
 					
-					if (variableArray.length > 0) {
+					// Find all variable occurrences in the text
+					const matches = [...originalCode.matchAll(regex)];
+					const foundVars = matches.map(match => match[1]);
+					
+					if (foundVars.length > 0) {
 						let processedCodeWithVars = originalCode;
 						// First collect all variables and their values
 						const replacements: {variable: string, value: string}[] = [];
 						
-						variableArray.forEach((variable: string) => {
+						// Create replacements for each found variable
+						foundVars.forEach(variable => {
 							const value = this.vaultProperties.getProperty(variable);
 							if (value !== undefined) {
 								const stringValue = this.stringifyValue(value);
@@ -230,10 +238,10 @@ export default class LiveVariables extends Plugin {
 						
 						// Now apply all replacements
 						replacements.forEach(({ variable, value }) => {
-							const startDelimiter = this.settings.variableDelimiters.start;
-							const endDelimiter = this.settings.variableDelimiters.end;
-							const regex = new RegExp(this.escapeRegExp(`${startDelimiter}${variable}${endDelimiter}`), 'g');
-							processedCodeWithVars = processedCodeWithVars.replace(regex, value);
+							const pattern = `${startDelimiter}${variable}${endDelimiter}`;
+							const escapedPattern = this.escapeRegExp(pattern);
+							const replaceRegex = new RegExp(escapedPattern, 'g');
+							processedCodeWithVars = processedCodeWithVars.replace(replaceRegex, value);
 						});
 						
 						// Also remove any line numbers from this processed version
@@ -344,7 +352,17 @@ export default class LiveVariables extends Plugin {
 					// First collect all variables and their values
 					const replacements: {variable: string, value: string, stringValue: string, displayValue: string}[] = [];
 					
-					variables.forEach((variable: string) => {
+					// Manually look for all variable patterns in the original code
+					const startDelimiter = this.settings.variableDelimiters.start;
+					const endDelimiter = this.settings.variableDelimiters.end;
+					const regex = new RegExp(`${this.escapeRegExp(startDelimiter)}([^${this.escapeRegExp(endDelimiter)}]+)${this.escapeRegExp(endDelimiter)}`, 'g');
+					
+					// Find all variable occurrences in the text
+					const matches = [...originalCode.matchAll(regex)];
+					const foundVars = matches.map(match => match[1]);
+					
+					// Create replacements for each found variable
+					foundVars.forEach(variable => {
 						const value = this.vaultProperties.getProperty(variable);
 						if (value !== undefined) {
 							const stringValue = this.stringifyValue(value);
@@ -366,10 +384,10 @@ export default class LiveVariables extends Plugin {
 					
 					// Now apply all replacements
 					replacements.forEach(({ variable, displayValue }) => {
-						const startDelimiter = this.settings.variableDelimiters.start;
-						const endDelimiter = this.settings.variableDelimiters.end;
-						const regex = new RegExp(this.escapeRegExp(`${startDelimiter}${variable}${endDelimiter}`), 'g');
-						displayCode = displayCode.replace(regex, displayValue);
+						const pattern = `${startDelimiter}${variable}${endDelimiter}`;
+						const escapedPattern = this.escapeRegExp(pattern);
+						const replaceRegex = new RegExp(escapedPattern, 'g');
+						displayCode = displayCode.replace(replaceRegex, displayValue);
 					});
 					
 					codeBlock.innerHTML = displayCode;
