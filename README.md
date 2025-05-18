@@ -1,143 +1,107 @@
-<div align="center">
-  <img src="https://github.com/user-attachments/assets/161c80a9-a1fa-427c-9861-a06552527387" width="100%" alt="Banner">
-
-# v2.1.0 is out!
-</div>
 <p align="center">
-  <a href="https://github.com/HamzaBenyazid/obsidian-live-variables/releases">
-	  <img src="https://img.shields.io/github/downloads/HamzaBenyazid/obsidian-live-variables/total?color=%233DDC84&logo=github&logoColor=%23fff&style=badge" alt="Downloads">
+  <a href="https://mickaelasseline.com">
+    <img src="https://zupimages.net/up/20/04/7vtd.png" width="140px" alt="PAPAMICA" />
   </a>
-	<a href="https://obsidian.md/plugins?search=live%20variables">
-	  <img src="https://img.shields.io/badge/dynamic/json?logo=obsidian&color=%23483699&label=downloads&query=%24%5B%22live-variables%22%5D.downloads&url=https%3A%2F%2Fraw.githubusercontent.com%2Fobsidianmd%2Fobsidian-releases%2Fmaster%2Fcommunity-plugin-stats.json" alt="Downloads">
-	</a>
 </p>
 
-**Supercharge your notes with dynamic data!** The Live Variables Plugin v2 revolutionizes how you manage information in Obsidian. Define variables once, reuse them everywhere, and watch your notes auto-update—now with powerful code blocks, smart queries, and an intuitive form interface.
+<p align="center">
+  <a href="#"><img src="https://readme-typing-svg.herokuapp.com?center=true&vCenter=true&lines=Simple+Live+Variable;"></a>
+</p>
 
-[![Sponsor this project](https://img.shields.io/badge/Sponsor-%E2%9D%A4-red?logo=github)](https://github.com/sponsors/HamzaBenyazid)  
-*Love this plugin? Help keep it alive! [Sponsor development →](https://github.com/sponsors/HamzaBenyazid)*
+🇬🇧 A simplified version of the Live Variables plugin for Obsidian. This version keeps only the display, editing, and insertion functionality for variables.
 
-Your sponsorship helps:
- - Fund critical updates and bug fixes
- - Prioritize feature requests from sponsors
- - Keep the plugin free for everyone
+🇫🇷 Une version simplifiée du plugin Live Variables pour Obsidian. Cette version conserve uniquement les fonctionnalités d'affichage, d'édition et d'insertion de variables.
 
----
-### Table of Contents
-**[Features](#-features)**<br>
-**[What's New in v2.1.0?](#-whats-new-in-v210)**<br>
-**[What's New in v2?](#-whats-new-in-v2)**<br>
-**[Demo](#-demo)**<br>
-**[Contributing](#-contributing)**<br>
-**[License](#-contributing)**<br>
+## Installation
+🇬🇧
+1. Create a `live-variables-lite` folder in your `.obsidian/plugins/` directory
+2. Copy the `main.js` and `manifest.json` files to this folder
+3. Restart Obsidian or enable the plugin in settings
 
 ---
-## 🚀 Features  
-- **Dynamic Variables**: Define in frontmatter, update everywhere instantly.  
-- **Code Block Magic**: Execute queries & transform data using code blocks.  
-- **Smart Query Engine**:  
-  - Built-in functions
-  - Custom JavaScript execution
-- **Custom Function Library**: Save frequent scripts (e.g., calculateTax) and call them by name!
-- **Form Interface**: Insert queries visually—no coding skills needed!  
-- **Cross-Note Sync**: Share variables across your entire vault.  
+🇫🇷
+1. Créez un dossier `live-variables-lite` dans votre dossier `.obsidian/plugins/`
+2. Copiez les fichiers `main.js` et `manifest.json` dans ce dossier
+3. Redémarrez Obsidian ou activez le plugin dans les paramètres
 
+## Features / Fonctionnalités
+
+- **Variable display** / **Affichage des variables**: Automatically replaces variables in text with their values
+- **Variable editing** / **Édition des variables**: Click on any variable to edit its value directly
+- **Variable insertion** / **Insertion de variables**: Use the command to insert variables from the frontmatter
+- **Change persistence** / **Persistance des modifications**: Changes are saved in the file's frontmatter
+- **Smart copy** / **Copie intelligente**: When copying a code block containing variables, the values are copied, not the delimiters
+
+## How to use / Comment utiliser
+
+### 🇬🇧 English
+
+1. Add variables in the YAML frontmatter of your Markdown files:
+```yaml
 ---
-## 🆕 What's New in v2.1.0?  
-### ✏️ Inline Editing
-Edit existing Live Variables references without reinserting them! Just place your cursor on any variable reference and run `Live Variables: Query variables` to modify it in-place.
-
-### 🔦 Smart Highlighting
-Instantly identify dynamic content with subtle highlights that:
-- Work in both light/dark modes
-- Preserve Markdown formatting (disables highlight when styling is present)
-- Help maintain visual hierarchy
-
-This feature can be is enabled by default and can be disabled in the settings.
-
-**Formatting Awareness:**  
-`**boldVar**` → No highlight to preserve bold style  
-`plainVar` → Highlighted for easy identification
-
-### 🎥 Demo for two features
-https://github.com/user-attachments/assets/c698453e-6e08-4793-b542-47fc39d9deeb
-
+user: papamica
+ip: 192.168.1.1
+port: 22
 ---
+```
 
-## 🎬 What's New in v2?  
-### Code Block Support
+2. Use these variables in your text with delimiters (default `{{` and `}}`):
+```
+SSH connection: ssh {{user}}@{{ip}} -p {{port}}
+```
 
-https://github.com/user-attachments/assets/9e064696-f99a-4d9e-af4e-dc2f749ec569
+3. To insert a variable:
+   - Place your cursor where you want to insert the variable
+   - Open the command palette (Ctrl/Cmd+P)
+   - Type "Insert variable" and select the command
+   - Choose the variable to insert from the list
 
-### Smart Query Engine
-- Build-in functions (SUM):
+4. To edit a variable:
+   - In preview mode, simply click on any variable
+   - Edit its value in the popup
+   - Click "Save" or press Enter
 
-https://github.com/user-attachments/assets/a72f7e87-64ea-454b-ad91-10daff7588c9
+### 🇫🇷 Français
 
-- Custom JavaScript Quries:
-  	- Used Examples
-  		- A/B Testing Content
-		```js
-		() => {
-		  return Math.random() > 0.5 ? "New UI" : "Legacy UI";
-		}
-		```
-  		- Dynamic Checklists 
-		```js
-		(tasks) => { 
-			const done = tasks.filter(t => t.completed).length; 
-			const doneBar = '▣'.repeat(done); 
-			const undoneBar = '□'.repeat(tasks.length - done); 
-			const completionPercentage = Math.round((done / tasks.length) * 100);
-			return doneBar + undoneBar + ' (' + completionPercentage +'% completed)'; 
-		}
-		```
-	- **Demo**:
-
-https://github.com/user-attachments/assets/979e4361-64b8-4d66-8f36-74d6fa1370df  
-
-- Custom Fucntion Library:
-
-https://github.com/user-attachments/assets/5affac22-1b86-4bf8-9993-15b9b023e4e8
-
-- User friendly form for inserting queries: 
-The form adds the arguments input dynamically and allows you the prview values of each argument and the value of the resulting query.
-<img width="400" alt="query-form" src="https://github.com/user-attachments/assets/ebfe1a8c-5d62-47e3-bc6f-02cf565d5ef0" />
-
+1. Ajoutez des variables dans le frontmatter YAML de vos fichiers Markdown :
+```yaml
 ---
+user: papamica
+ip: 192.168.1.1
+port: 22
+---
+```
 
-## Getting Started
+2. Utilisez ces variables dans votre texte avec les délimiteurs (par défaut `{{` et `}}`) :
+```
+Connexion SSH : ssh {{user}}@{{ip}} -p {{port}}
+```
 
-1. **Install the Plugin**:
-   - Install directly from the Obsidian plugin marketplace, or manually download the latest release, unzip it, and place the folder in your vault's plugin directory. Enable the plugin in Obsidian’s settings.
+3. Pour insérer une variable :
+   - Placez votre curseur où vous souhaitez insérer la variable
+   - Ouvrez la palette de commandes (Ctrl/Cmd+P)
+   - Tapez "Insérer une variable" et sélectionnez la commande
+   - Choisissez la variable à insérer dans la liste
 
-2. **Define Variables**:
-   - Open the note where you want to use variables.
-   - In the note’s frontmatter (the YAML block), define your variables. Example:
-     ```yaml
-     ---
-     projectName: Obsidian Live Variables Plugin
-     dueDate: 2024-12-31
-     ---
-     ```
+4. Pour modifier une variable :
+   - En mode prévisualisation, cliquez simplement sur n'importe quelle variable
+   - Modifiez sa valeur dans le popup
+   - Cliquez sur "Enregistrer" ou appuyez sur Entrée
 
-3. **Insert Variables**:
-   You can insert variables using the following options:
-   - **Local Variables**: Insert a variable defined within the current note by using the command: `Live Variables: Insert local variable`.
-   - **Vault-Wide Variables**: Insert a variable defined in any note within the vault by using the command: `Live Variables: Insert variable from another note`.
-   - **Query variables**: Insert a live code blocks, live custom js function and your saved function by using command: `Live Variables: Query variables`.
+## Configuration
 
-4. **Update Variables**:
-   - Modify the value of a variable in the note’s properties, and all references to that variable across your vault will be updated instantly.
-  
-## 🎥 Demo
-Check out this quick demo of all of plugin's features in action:
+### 🇬🇧 English
 
-https://github.com/user-attachments/assets/70361e83-5b84-4029-a7e9-e0e640e216d1
+In the plugin settings, you can:
+- Change the language between English and French
+- Change the delimiters for variables
+- Enable/disable variable highlighting
+- Choose the color for highlighted variables
 
-## 🤝 Contributing
-We welcome contributions! If you have suggestions for improvements or new features, feel free to open an issue or submit a pull request.
+### 🇫🇷 Français
 
-## 📜 License
-This project is licensed under the MIT License.
-
+Dans les paramètres du plugin, vous pouvez :
+- Changer la langue entre l'anglais et le français
+- Changer les délimiteurs pour les variables
+- Activer/désactiver la mise en évidence des variables
+- Choisir la couleur des variables
