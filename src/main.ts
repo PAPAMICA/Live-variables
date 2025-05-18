@@ -46,6 +46,11 @@ export default class LiveVariables extends Plugin {
 			const nodesToReplace: { node: Text; newContent: string }[] = [];
 
 			while ((node = walker.nextNode() as Text)) {
+				// Skip if the node is inside a code block
+				if (node.parentElement?.closest('pre code')) {
+					continue;
+				}
+
 				const text = node.textContent || '';
 				const startDelimiter = this.settings.variableDelimiters.start;
 				const endDelimiter = this.settings.variableDelimiters.end;
@@ -81,6 +86,32 @@ export default class LiveVariables extends Plugin {
 					fragment.appendChild(tempDiv.firstChild);
 				}
 				node.parentNode?.replaceChild(fragment, node);
+			});
+
+			// Process code blocks separately
+			const codeBlocks = element.querySelectorAll('pre code');
+			codeBlocks.forEach((codeBlock) => {
+				const text = codeBlock.textContent || '';
+				const startDelimiter = this.settings.variableDelimiters.start;
+				const endDelimiter = this.settings.variableDelimiters.end;
+				const regex = new RegExp(`${startDelimiter}(.*?)${endDelimiter}`, 'g');
+				
+				let modified = false;
+				let newText = text;
+
+				[...text.matchAll(regex)].forEach((match) => {
+					const variable = match[1];
+					const value = this.vaultProperties.getProperty(variable);
+					if (value !== undefined) {
+						const stringValue = this.stringifyValue(value);
+						newText = newText.replace(match[0], stringValue);
+						modified = true;
+					}
+				});
+
+				if (modified) {
+					codeBlock.textContent = newText;
+				}
 			});
 		});
 
