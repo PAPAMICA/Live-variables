@@ -746,23 +746,25 @@ class VariableSelectionModal extends Modal {
 			this.filterVariables(this.searchInput.value);
 		});
 		
-		// Add keyboard navigation
+		// Add keyboard navigation for the search input
 		this.searchInput.addEventListener('keydown', (e) => {
 			if (e.key === 'Enter') {
 				// Insert the first visible variable when pressing Enter
 				if (this.displayedVariables.length > 0) {
+					e.preventDefault(); // Prevent default form submission behavior
 					this.onChoose(this.displayedVariables[0]);
 					this.close();
 				}
 			} else if (e.key === 'Escape') {
 				// Close the modal when pressing Escape
+				e.preventDefault(); // Prevent default behavior
 				this.close();
 			} else if (e.key === 'ArrowDown') {
 				// Move focus to the first variable item
 				const firstItem = this.variableList.querySelector('.variable-item');
 				if (firstItem) {
+					e.preventDefault(); // Prevent scrolling
 					(firstItem as HTMLElement).focus();
-					e.preventDefault();
 				}
 			}
 		});
@@ -802,7 +804,7 @@ class VariableSelectionModal extends Modal {
 		}
 		
 		// Add each variable as a clickable item
-		this.displayedVariables.forEach(variable => {
+		this.displayedVariables.forEach((variable, index) => {
 			const varItem = this.variableList.createEl('div', {
 				cls: 'variable-item',
 				text: `${variable.key}: ${this.formatValue(variable.value)}`
@@ -814,30 +816,46 @@ class VariableSelectionModal extends Modal {
 			varItem.style.borderRadius = '4px';
 			varItem.style.cursor = 'pointer';
 			varItem.style.backgroundColor = 'var(--background-secondary)';
+			varItem.style.outline = 'none'; // Remove default outline
 			
-			// Make item focusable
+			// Make item focusable and set data attribute for identification
 			varItem.tabIndex = 0;
+			varItem.setAttribute('data-index', index.toString());
 			
-			// Add keyboard support
+			// Add keyboard support with extra styling on focus
+			varItem.addEventListener('focus', () => {
+				varItem.style.backgroundColor = 'var(--background-modifier-hover)';
+				varItem.style.boxShadow = '0 0 0 2px var(--interactive-accent)';
+			});
+			
+			varItem.addEventListener('blur', () => {
+				varItem.style.backgroundColor = 'var(--background-secondary)';
+				varItem.style.boxShadow = 'none';
+			});
+			
 			varItem.addEventListener('keydown', (e) => {
 				if (e.key === 'Enter' || e.key === ' ') {
+					e.preventDefault();
+					e.stopPropagation();
 					this.onChoose(variable);
 					this.close();
-					e.preventDefault();
 				} else if (e.key === 'ArrowDown') {
-					const nextSibling = varItem.nextElementSibling;
-					if (nextSibling) {
-						(nextSibling as HTMLElement).focus();
-						e.preventDefault();
+					e.preventDefault();
+					const nextSibling = varItem.nextElementSibling as HTMLElement;
+					if (nextSibling && nextSibling.classList.contains('variable-item')) {
+						nextSibling.focus();
 					}
 				} else if (e.key === 'ArrowUp') {
-					const prevSibling = varItem.previousElementSibling;
+					e.preventDefault();
+					const prevSibling = varItem.previousElementSibling as HTMLElement;
 					if (prevSibling && prevSibling.classList.contains('variable-item')) {
-						(prevSibling as HTMLElement).focus();
+						prevSibling.focus();
 					} else {
 						this.searchInput.focus();
 					}
+				} else if (e.key === 'Escape') {
 					e.preventDefault();
+					this.close();
 				}
 			});
 			
@@ -847,11 +865,15 @@ class VariableSelectionModal extends Modal {
 			});
 			
 			varItem.addEventListener('mouseleave', () => {
-				varItem.style.backgroundColor = 'var(--background-secondary)';
+				if (document.activeElement !== varItem) {
+					varItem.style.backgroundColor = 'var(--background-secondary)';
+				}
 			});
 			
 			// On click, insert the variable
-			varItem.addEventListener('click', () => {
+			varItem.addEventListener('click', (e) => {
+				e.preventDefault();
+				e.stopPropagation();
 				this.onChoose(variable);
 				this.close();
 			});
