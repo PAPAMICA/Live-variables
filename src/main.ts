@@ -330,20 +330,69 @@ export default class LiveVariables extends Plugin {
 				const variables = JSON.parse(codeBlock.getAttribute('data-variables') || '[]');
 				if (variables.length > 0) {
 					let displayCode = originalCode;
+					const startDelimiter = this.settings.variableDelimiters.start;
+					const endDelimiter = this.settings.variableDelimiters.end;
+					
+					// Create a temporary container to process HTML replacements
+					const tempDiv = document.createElement('div');
+					tempDiv.innerHTML = displayCode;
+					
+					// Get the text content
+					let textContent = tempDiv.textContent || displayCode;
+					
+					// Prepare to track all replacements with their positions
+					interface Replacement {
+						variable: string;
+						value: string;
+						startPos: number;
+						endPos: number;
+					}
+					
+					const replacements: Replacement[] = [];
+					
+					// Find all variable occurrences and their positions
 					variables.forEach((variable: string) => {
 						const value = this.vaultProperties.getProperty(variable);
 						if (value !== undefined) {
-							const stringValue = this.stringifyValue(value);
-							const displayValue = this.settings.highlightDynamicVariables 
-								? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor} !important">${stringValue}</span>`
-								: stringValue;
-							displayCode = displayCode.replace(
-								new RegExp(`${this.settings.variableDelimiters.start}${variable}${this.settings.variableDelimiters.end}`, 'g'),
-								displayValue
-							);
+							const variableString = `${startDelimiter}${variable}${endDelimiter}`;
+							let startPos = 0;
+							
+							// Find all occurrences of this variable
+							let matchIndex;
+							while ((matchIndex = textContent.indexOf(variableString, startPos)) !== -1) {
+								const stringValue = this.stringifyValue(value);
+								
+								replacements.push({
+									variable: variableString,
+									value: stringValue,
+									startPos: matchIndex,
+									endPos: matchIndex + variableString.length
+								});
+								
+								// Move past this match
+								startPos = matchIndex + variableString.length;
+							}
 						}
 					});
-					codeBlock.innerHTML = displayCode;
+					
+					// Sort replacements by position, from end to start to avoid offset issues
+					replacements.sort((a, b) => b.startPos - a.startPos);
+					
+					// Apply all replacements
+					let processedHtml = textContent;
+					replacements.forEach(replacement => {
+						const before = processedHtml.substring(0, replacement.startPos);
+						const after = processedHtml.substring(replacement.endPos);
+						
+						const displayValue = this.settings.highlightDynamicVariables 
+							? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor} !important">${replacement.value}</span>`
+							: replacement.value;
+							
+						processedHtml = before + displayValue + after;
+					});
+					
+					// Update the code block content
+					codeBlock.innerHTML = processedHtml;
 				}
 			}
 		});
@@ -395,41 +444,66 @@ export default class LiveVariables extends Plugin {
 					const startDelimiter = this.settings.variableDelimiters.start;
 					const endDelimiter = this.settings.variableDelimiters.end;
 					
-					// Create a temporary container to hold the code
-					const tempContainer = document.createElement('div');
-					tempContainer.innerHTML = codeBlock.innerHTML;
+					// Create a temporary container to process HTML replacements
+					const tempDiv = document.createElement('div');
+					tempDiv.innerHTML = originalCode;
 					
-					// Find all text nodes that might contain variables
-					const walker = document.createTreeWalker(
-						tempContainer,
-						NodeFilter.SHOW_TEXT,
-						null
-					);
+					// Get the text content
+					let textContent = tempDiv.textContent || originalCode;
 					
-					let node: Text | null;
-					while ((node = walker.nextNode() as Text)) {
-						let text = node.textContent || '';
-						let modified = false;
-						
-						variables.forEach((variable: string) => {
-							const value = this.vaultProperties.getProperty(variable);
-							if (value !== undefined) {
-								const regex = new RegExp(`${startDelimiter}${variable}${endDelimiter}`, 'g');
-								const newText = text.replace(regex, this.stringifyValue(value));
-								if (newText !== text) {
-									text = newText;
-									modified = true;
-								}
-							}
-						});
-						
-						if (modified) {
-							node.textContent = text;
-						}
+					// Prepare to track all replacements with their positions
+					interface Replacement {
+						variable: string;
+						value: string;
+						startPos: number;
+						endPos: number;
 					}
 					
-					// Update the code block content while preserving formatting
-					codeBlock.innerHTML = tempContainer.innerHTML;
+					const replacements: Replacement[] = [];
+					
+					// Find all variable occurrences and their positions
+					variables.forEach((variable: string) => {
+						const value = this.vaultProperties.getProperty(variable);
+						if (value !== undefined) {
+							const variableString = `${startDelimiter}${variable}${endDelimiter}`;
+							let startPos = 0;
+							
+							// Find all occurrences of this variable
+							let matchIndex;
+							while ((matchIndex = textContent.indexOf(variableString, startPos)) !== -1) {
+								const stringValue = this.stringifyValue(value);
+								
+								replacements.push({
+									variable: variableString,
+									value: stringValue,
+									startPos: matchIndex,
+									endPos: matchIndex + variableString.length
+								});
+								
+								// Move past this match
+								startPos = matchIndex + variableString.length;
+							}
+						}
+					});
+					
+					// Sort replacements by position, from end to start to avoid offset issues
+					replacements.sort((a, b) => b.startPos - a.startPos);
+					
+					// Apply all replacements
+					let processedHtml = textContent;
+					replacements.forEach(replacement => {
+						const before = processedHtml.substring(0, replacement.startPos);
+						const after = processedHtml.substring(replacement.endPos);
+						
+						const displayValue = this.settings.highlightDynamicVariables 
+							? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor} !important">${replacement.value}</span>`
+							: replacement.value;
+							
+						processedHtml = before + displayValue + after;
+					});
+					
+					// Update the code block content
+					codeBlock.innerHTML = processedHtml;
 				}
 			});
 		}
