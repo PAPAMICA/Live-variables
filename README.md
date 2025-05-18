@@ -52,7 +52,7 @@ port: 22
 
 2. Use these variables in your text with delimiters (default `{{` and `}}`):
 ```
-SSH connection: ssh {{user}}@{{ip}} -p {{port}}
+SSH connection: ssh -p {{port}} {{user}}@{{ip}}
 ```
 
 3. To insert a variable:
@@ -79,7 +79,7 @@ port: 22
 
 2. Utilisez ces variables dans votre texte avec les délimiteurs (par défaut `{{` et `}}`) :
 ```
-Connexion SSH : ssh {{user}}@{{ip}} -p {{port}}
+Connexion SSH : ssh -p {{port}} {{user}}@{{ip}}
 ```
 
 3. Pour insérer une variable :
