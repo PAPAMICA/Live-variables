@@ -177,13 +177,20 @@ export default class LiveVariables extends Plugin {
 		const codeBlocks = view.contentEl.querySelectorAll('pre code');
 		codeBlocks.forEach((codeBlock) => {
 			const originalCode = codeBlock.getAttribute('data-original-code') || codeBlock.textContent || '';
-			const variables = JSON.parse(codeBlock.getAttribute('data-variables') || '[]');
 			
 			// Store original code if not already stored
 			if (!codeBlock.getAttribute('data-original-code')) {
 				codeBlock.setAttribute('data-original-code', originalCode);
+				
+				// Extract variables from the code
+				const startDelimiter = this.settings.variableDelimiters.start;
+				const endDelimiter = this.settings.variableDelimiters.end;
+				const regex = new RegExp(`${startDelimiter}(.*?)${endDelimiter}`, 'g');
+				const variables = [...originalCode.matchAll(regex)].map(match => match[1]);
+				codeBlock.setAttribute('data-variables', JSON.stringify(variables));
 			}
 			
+			const variables = JSON.parse(codeBlock.getAttribute('data-variables') || '[]');
 			if (variables.length > 0) {
 				let displayCode = originalCode;
 				variables.forEach((variable: string) => {
@@ -200,15 +207,22 @@ export default class LiveVariables extends Plugin {
 					}
 				});
 				codeBlock.innerHTML = displayCode;
+				
+				// Store the display code for copying
+				codeBlock.setAttribute('data-display-code', displayCode);
 			}
 		});
 
 		// Add copy event listener to code blocks
 		codeBlocks.forEach((codeBlock) => {
 			codeBlock.addEventListener('copy', (e: ClipboardEvent) => {
-				const originalCode = codeBlock.getAttribute('data-original-code');
-				if (originalCode) {
-					e.clipboardData?.setData('text/plain', originalCode);
+				const displayCode = codeBlock.getAttribute('data-display-code');
+				if (displayCode) {
+					// Remove HTML tags from the display code
+					const tempDiv = document.createElement('div');
+					tempDiv.innerHTML = displayCode;
+					const plainText = tempDiv.textContent || tempDiv.innerText || '';
+					e.clipboardData?.setData('text/plain', plainText);
 					e.preventDefault();
 				}
 			});
