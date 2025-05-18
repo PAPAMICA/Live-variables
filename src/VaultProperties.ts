@@ -14,6 +14,7 @@ export default class VaultProperties {
 	private localProperties: Properties;
 	private localKeysAndAllVariableKeys: string[];
 	private localKeys: string[];
+	private temporaryVariables: Map<string, any> = new Map();
 
 	constructor(app: App) {
 		this.app = app;
@@ -95,6 +96,11 @@ export default class VaultProperties {
 	}
 
 	getProperty(path: string): any {
+		// Check first if we have a temporary override
+		if (this.temporaryVariables.has(path)) {
+			return this.temporaryVariables.get(path);
+		}
+		
 		const currentFile = this.app.workspace.getActiveFile();
 		if (!currentFile) return undefined;
 
@@ -219,5 +225,16 @@ export default class VaultProperties {
 	getPropertyPreview(path: string) {
 		const value = this.getProperty(path);
 		return value ? trancateString(stringifyIfObj(value), 50) : 'no value';
+	}
+	
+	// Méthode temporaire pour mettre à jour une variable en mémoire
+	// Note: Cette mise à jour ne persiste que pour la session en cours
+	// et sera perdue au redémarrage du plugin ou d'Obsidian
+	temporaryUpdateVariable(path: string, value: any) {
+		this.temporaryVariables.set(path, value);
+		
+		// Dans une implémentation réelle, vous voudriez mettre à jour le frontmatter du fichier
+		// et le sauvegarder sur le disque pour une persistance réelle
+		console.log(`Variable ${path} temporairement mise à jour avec la valeur ${value}`);
 	}
 }

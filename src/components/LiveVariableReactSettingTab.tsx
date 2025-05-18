@@ -21,7 +21,6 @@ const LiveVariablesReactSettingTab: FC<LiveVariableReactSettingTabProps> = ({
 	const [hightlightText, setHighlightText] = useState<boolean>();
 	const [highlightDynamicVariables, setHighlightDynamicVariables] = useState<boolean>();
 	const [dynamicVariableColor, setDynamicVariableColor] = useState<string>('#ff0000');
-	const [enableInlineEditing, setEnableInlineEditing] = useState<boolean>(true);
 	const [variableDelimiters, setVariableDelimiters] = useState<{
 		start: string;
 		end: string;
@@ -95,12 +94,6 @@ const LiveVariablesReactSettingTab: FC<LiveVariableReactSettingTabProps> = ({
 		plugin.saveSettings();
 	};
 
-	const updateEnableInlineEditing = (newValue: boolean) => {
-		setEnableInlineEditing(newValue);
-		plugin.settings.enableInlineEditing = newValue;
-		plugin.saveSettings();
-	};
-
 	const updateVariableDelimiters = (newValue: { start: string; end: string }) => {
 		setVariableDelimiters(newValue);
 		plugin.settings.variableDelimiters = newValue;
@@ -114,7 +107,6 @@ const LiveVariablesReactSettingTab: FC<LiveVariableReactSettingTabProps> = ({
 		setHighlightDynamicVariables(plugin.settings.highlightDynamicVariables);
 		setDynamicVariableColor(plugin.settings.dynamicVariableColor);
 		setVariableDelimiters(plugin.settings.variableDelimiters);
-		setEnableInlineEditing(plugin.settings.enableInlineEditing);
 	}, [deleteFunction, updateFunction]);
 
 	useEffect(() => {
@@ -155,16 +147,6 @@ const LiveVariablesReactSettingTab: FC<LiveVariableReactSettingTabProps> = ({
 						value={dynamicVariableColor}
 						onChange={(e) => updateDynamicVariableColor(e.target.value)}
 						style={{ width: '50px', height: '25px' }}
-					/>
-				</Setting>
-				<Setting
-					className="setting-item"
-					name="Enable Inline Editing"
-					desc="Allow editing variables directly in the content using [{{-var-}}] syntax"
-				>
-					<Setting.Toggle
-						checked={enableInlineEditing}
-						onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateEnableInlineEditing(e.target.checked)}
 					/>
 				</Setting>
 				<Setting

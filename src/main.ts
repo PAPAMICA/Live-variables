@@ -19,6 +19,7 @@ export default class LiveVariables extends Plugin {
 	public settings: LiveVariablesSettings;
 	public vaultProperties: VaultProperties;
 	private styleElement: HTMLStyleElement | null = null;
+	private activeTooltip: HTMLElement | null = null;
 
 	async onload() {
 		await this.loadSettings();
@@ -50,33 +51,71 @@ export default class LiveVariables extends Plugin {
 				line-height: inherit !important;
 				text-decoration: inherit !important;
 				pointer-events: inherit !important;
+				cursor: pointer !important;
+				position: relative;
+				border-bottom: 1px dotted ${this.settings.dynamicVariableColor} !important;
 			}
 			
-			.inline-variable-editor {
-				display: inline-flex;
-				align-items: center;
-				margin: 0 4px;
-				border-radius: 4px;
-				background-color: var(--background-secondary);
+			.dynamic-variable:hover {
+				background-color: rgba(0, 0, 0, 0.1) !important;
+			}
+			
+			.variable-edit-tooltip {
+				position: absolute;
+				z-index: 1000;
+				background-color: var(--background-primary);
 				border: 1px solid var(--background-modifier-border);
-				padding: 2px 8px;
+				border-radius: 4px;
+				padding: 8px;
+				box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+				min-width: 200px;
+				font-family: var(--font-interface);
 			}
 			
-			.inline-variable-editor input {
-				background: transparent;
-				border: none;
-				color: var(--text-normal);
+			.variable-edit-tooltip h5 {
+				margin: 0 0 8px 0;
 				font-size: 14px;
-				padding: 2px 4px;
-				width: auto;
-				min-width: 120px;
+				font-weight: 600;
+				color: var(--text-normal);
 			}
 			
-			.inline-variable-editor .variable-name {
+			.variable-edit-tooltip input {
+				width: 100%;
+				margin-bottom: 8px;
+				background-color: var(--background-primary);
+				border: 1px solid var(--background-modifier-border);
+				color: var(--text-normal);
+				padding: 4px 8px;
+				border-radius: 4px;
+			}
+			
+			.variable-edit-tooltip .tooltip-buttons {
+				display: flex;
+				justify-content: flex-end;
+				gap: 8px;
+			}
+			
+			.variable-edit-tooltip button {
+				padding: 4px 8px;
+				background-color: var(--interactive-normal);
+				border: 1px solid var(--background-modifier-border);
+				border-radius: 4px;
+				color: var(--text-normal);
+				cursor: pointer;
 				font-size: 12px;
-				opacity: 0.7;
-				margin-right: 8px;
-				white-space: nowrap;
+			}
+			
+			.variable-edit-tooltip button.primary {
+				background-color: var(--interactive-accent);
+				color: var(--text-on-accent);
+			}
+			
+			.variable-edit-tooltip button:hover {
+				background-color: var(--interactive-hover);
+			}
+			
+			.variable-edit-tooltip button.primary:hover {
+				background-color: var(--interactive-accent-hover);
 			}
 		`);
 
@@ -107,32 +146,12 @@ export default class LiveVariables extends Plugin {
 					if (value !== undefined) {
 						const stringValue = this.stringifyValue(value);
 						const displayValue = this.settings.highlightDynamicVariables 
-							? `<span class="dynamic-variable">${stringValue}</span>`
+							? `<span class="dynamic-variable" data-variable="${variable}">${stringValue}</span>`
 							: stringValue;
 						newText = newText.replace(match[0], displayValue);
 						modified = true;
 					}
 				});
-				
-				// Check for inline editable variables [{{-var-}}]
-				if (this.settings.enableInlineEditing) {
-					const inlineEditRegex = new RegExp(`\\[${startDelimiter}(.*?)${endDelimiter}\\]`, 'g');
-					let match;
-					while ((match = inlineEditRegex.exec(text)) !== null) {
-						const variable = match[1];
-						const value = this.vaultProperties.getProperty(variable);
-						if (value !== undefined) {
-							const stringValue = this.stringifyValue(value);
-							// Create an inline editor element instead of just displaying the value
-							const editorHtml = `<span class="inline-variable-editor" data-variable="${variable}">
-								<span class="variable-name">${variable}:</span>
-								<input type="text" class="inline-variable-input" value="${stringValue}" data-variable="${variable}">
-							</span>`;
-							newText = newText.replace(match[0], editorHtml);
-							modified = true;
-						}
-					}
-				}
 
 				if (modified) {
 					nodesToReplace.push({ node, newContent: newText });
@@ -150,10 +169,8 @@ export default class LiveVariables extends Plugin {
 				node.parentNode?.replaceChild(fragment, node);
 			});
 			
-			// Set up event listeners for inline variable editors
-			if (this.settings.enableInlineEditing) {
-				this.setupInlineVariableEditors(element);
-			}
+			// Add click handlers for variable editing
+			this.setupVariableEditHandlers(element);
 			
 			// Override code block copy functionality
 			this.modifyCodeBlockCopyButtons(element);
@@ -248,6 +265,134 @@ export default class LiveVariables extends Plugin {
 				}
 			})
 		);
+	}
+	
+	// Set up click handlers for editing variables
+	setupVariableEditHandlers(element: HTMLElement) {
+		const variables = element.querySelectorAll('.dynamic-variable');
+		variables.forEach(varEl => {
+			varEl.addEventListener('click', (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				
+				// Get the variable name
+				const variable = varEl.getAttribute('data-variable');
+				if (!variable) return;
+				
+				// Get the current value
+				const currentValue = this.vaultProperties.getProperty(variable) || '';
+				
+				// Create the tooltip
+				this.showVariableEditTooltip(varEl as HTMLElement, variable, currentValue.toString());
+			});
+		});
+	}
+	
+	// Create and show the variable edit tooltip
+	showVariableEditTooltip(element: HTMLElement, variable: string, currentValue: string) {
+		// Close any existing tooltip
+		this.closeActiveTooltip();
+		
+		// Create tooltip
+		const tooltip = document.createElement('div');
+		tooltip.className = 'variable-edit-tooltip';
+		
+		// Create tooltip content
+		tooltip.innerHTML = `
+			<h5>Modifier la variable: ${variable}</h5>
+			<input type="text" value="${currentValue.replace(/"/g, '&quot;')}" placeholder="Nouvelle valeur" />
+			<div class="tooltip-buttons">
+				<button class="cancel">Annuler</button>
+				<button class="primary save">Enregistrer</button>
+			</div>
+		`;
+		
+		// Position the tooltip
+		const rect = element.getBoundingClientRect();
+		tooltip.style.left = `${rect.left}px`;
+		tooltip.style.top = `${rect.bottom + 5}px`;
+		
+		// Add event handlers
+		const inputEl = tooltip.querySelector('input');
+		const cancelBtn = tooltip.querySelector('button.cancel');
+		const saveBtn = tooltip.querySelector('button.primary');
+		
+		if (inputEl && cancelBtn && saveBtn) {
+			// Focus the input
+			setTimeout(() => {
+				(inputEl as HTMLInputElement).focus();
+				(inputEl as HTMLInputElement).select();
+			}, 10);
+			
+			// Cancel button closes the tooltip
+			cancelBtn.addEventListener('click', () => {
+				this.closeActiveTooltip();
+			});
+			
+			// Save button updates the variable and closes tooltip
+			saveBtn.addEventListener('click', () => {
+				const newValue = (inputEl as HTMLInputElement).value;
+				this.updateVariableValue(variable, newValue);
+				this.closeActiveTooltip();
+			});
+			
+			// Enter key also saves
+			inputEl.addEventListener('keydown', (e) => {
+				if (e.key === 'Enter') {
+					const newValue = (inputEl as HTMLInputElement).value;
+					this.updateVariableValue(variable, newValue);
+					this.closeActiveTooltip();
+				} else if (e.key === 'Escape') {
+					this.closeActiveTooltip();
+				}
+			});
+			
+			// Click outside closes tooltip
+			document.addEventListener('click', this.handleClickOutside);
+		}
+		
+		// Add to DOM
+		document.body.appendChild(tooltip);
+		this.activeTooltip = tooltip;
+	}
+	
+	// Handle clicks outside the tooltip to close it
+	handleClickOutside = (e: MouseEvent) => {
+		if (this.activeTooltip && e.target) {
+			if (!this.activeTooltip.contains(e.target as Node)) {
+				this.closeActiveTooltip();
+			}
+		}
+	}
+	
+	// Close the active tooltip
+	closeActiveTooltip() {
+		if (this.activeTooltip) {
+			document.removeEventListener('click', this.handleClickOutside);
+			this.activeTooltip.remove();
+			this.activeTooltip = null;
+		}
+	}
+	
+	// Update a variable value and refresh all instances
+	updateVariableValue(variable: string, newValue: string) {
+		// Here you would update the variable in your data model
+		// This is a simplified example - you'll need to implement how 
+		// to actually update your variable storage
+		
+		// Temporary implementation that just stores the value in the property map
+		// Dans une version réelle, vous devrez mettre à jour la valeur dans le fichier frontmatter
+		this.vaultProperties.temporaryUpdateVariable(variable, newValue);
+		
+		// Notify the user
+		new Notice(`Variable ${variable} mise à jour`);
+		
+		// Refresh all views to show the new value
+		this.app.workspace.iterateRootLeaves(leaf => {
+			if (leaf.view instanceof MarkdownView && leaf.view.file) {
+				this.refreshView(leaf.view.file);
+			}
+		});
 	}
 	
 	modifyCodeBlockCopyButtons(element: HTMLElement) {
@@ -413,37 +558,27 @@ export default class LiveVariables extends Plugin {
 					const startDelimiterEscaped = escapeRegExp(startDelimiter);
 					const endDelimiterEscaped = escapeRegExp(endDelimiter);
 					
-					// Store replacements as [search, replace] pairs
-					const replacements: [string, string][] = [];
+					// Create a regex that matches all variable patterns
+					const variablePattern = `${startDelimiterEscaped}(${variables.join('|')})${endDelimiterEscaped}`;
+					const regex = new RegExp(variablePattern, 'g');
 					
-					// Process each variable
-					variables.forEach((variable: string) => {
+					// Replace all matches in a single pass
+					processedCode = processedCode.replace(regex, (match, variable) => {
 						const value = this.vaultProperties.getProperty(variable);
 						if (value !== undefined) {
 							const stringValue = this.stringifyValue(value);
-							const searchPattern = `${startDelimiter}${variable}${endDelimiter}`;
-							
-							// Create replacement HTML
-							let replacement = stringValue;
-							if (this.settings.highlightDynamicVariables) {
-								replacement = `<span class="dynamic-variable">${stringValue}</span>`;
-							}
-							
-							// Add to replacements list
-							replacements.push([searchPattern, replacement]);
+							return this.settings.highlightDynamicVariables
+								? `<span class="dynamic-variable" data-variable="${variable}">${stringValue}</span>`
+								: stringValue;
 						}
-					});
-					
-					// Apply all replacements
-					replacements.forEach(([search, replace]) => {
-						// Create a regex with global flag for multiple replacements
-						const searchEscaped = escapeRegExp(search);
-						const regex = new RegExp(searchEscaped, 'g');
-						processedCode = processedCode.replace(regex, replace);
+						return match;
 					});
 					
 					// Set the HTML directly
 					codeBlock.innerHTML = processedCode;
+					
+					// Add click handlers to the newly created variable spans
+					this.setupVariableEditHandlers(codeBlock as HTMLElement);
 				}
 			}
 		});
@@ -456,13 +591,23 @@ export default class LiveVariables extends Plugin {
 				const value = tryComputeValueFromQuery(query, this.vaultProperties, this.settings);
 				if (value !== undefined) {
 					const stringValue = this.stringifyValue(value);
+					
+					// Extract the variable name from the query if possible
+					let variableName = "";
+					if (query.startsWith('get(') && query.endsWith(')')) {
+						variableName = query.substring(4, query.length - 1);
+					}
+					
 					const displayValue = this.settings.highlightDynamicVariables 
-						? `<span class="dynamic-variable">${stringValue}</span>`
+						? `<span class="dynamic-variable" data-variable="${variableName}">${stringValue}</span>`
 						: stringValue;
 					span.innerHTML = displayValue;
 				}
 			}
 		});
+		
+		// Add click handlers to variable spans in the view
+		this.setupVariableEditHandlers(view.contentEl);
 		
 		// After updating variables, also update the copy buttons
 		this.modifyCodeBlockCopyButtons(view.contentEl);
@@ -514,7 +659,7 @@ export default class LiveVariables extends Plugin {
 						if (value !== undefined) {
 							const stringValue = this.stringifyValue(value);
 							return this.settings.highlightDynamicVariables
-								? `<span class="dynamic-variable">${stringValue}</span>`
+								? `<span class="dynamic-variable" data-variable="${variable}">${stringValue}</span>`
 								: stringValue;
 						}
 						return match;
@@ -522,77 +667,11 @@ export default class LiveVariables extends Plugin {
 					
 					// Set the HTML directly
 					codeBlock.innerHTML = processedCode;
+					
+					// Add click handlers to the newly created variable spans
+					this.setupVariableEditHandlers(codeBlock as HTMLElement);
 				}
 			});
-			
-			// Process inline editable variables [{{-var-}}]
-			if (this.settings.enableInlineEditing) {
-				// Find all text nodes in the document
-				const allElements = view.contentEl.querySelectorAll('*');
-				
-				allElements.forEach((element) => {
-					// Skip elements that are already inline editors
-					if (element.classList.contains('inline-variable-editor')) return;
-					
-					// Skip code blocks and their children
-					if (element.closest('pre')) return;
-					
-					// Process text nodes in this element
-					const walker = document.createTreeWalker(
-						element,
-						NodeFilter.SHOW_TEXT,
-						null
-					);
-					
-					let node: Text | null;
-					const nodesToReplace: { node: Text; newContent: string }[] = [];
-					
-					while ((node = walker.nextNode() as Text)) {
-						const text = node.textContent || '';
-						const startDelimiter = this.settings.variableDelimiters.start;
-						const endDelimiter = this.settings.variableDelimiters.end;
-						
-						// Look for the inline editable variable pattern
-						const inlineEditRegex = new RegExp(`\\[${startDelimiter}(.*?)${endDelimiter}\\]`, 'g');
-						let match;
-						let modified = false;
-						let newText = text;
-						
-						while ((match = inlineEditRegex.exec(text)) !== null) {
-							const variable = match[1];
-							const value = this.vaultProperties.getProperty(variable);
-							if (value !== undefined) {
-								const stringValue = this.stringifyValue(value);
-								// Create an inline editor element
-								const editorHtml = `<span class="inline-variable-editor" data-variable="${variable}">
-									<span class="variable-name">${variable}:</span>
-									<input type="text" class="inline-variable-input" value="${stringValue}" data-variable="${variable}">
-								</span>`;
-								newText = newText.replace(match[0], editorHtml);
-								modified = true;
-							}
-						}
-						
-						if (modified) {
-							nodesToReplace.push({ node, newContent: newText });
-						}
-					}
-					
-					// Apply all replacements
-					nodesToReplace.forEach(({ node, newContent }) => {
-						const tempDiv = document.createElement('div');
-						tempDiv.innerHTML = newContent;
-						const fragment = document.createDocumentFragment();
-						while (tempDiv.firstChild) {
-							fragment.appendChild(tempDiv.firstChild);
-						}
-						node.parentNode?.replaceChild(fragment, node);
-					});
-				});
-				
-				// Set up event listeners for the newly created inline editors
-				this.setupInlineVariableEditors(view.contentEl);
-			}
 		}
 	}
 
@@ -720,6 +799,9 @@ export default class LiveVariables extends Plugin {
 			this.styleElement.remove();
 			this.styleElement = null;
 		}
+		
+		// Close any open tooltips
+		this.closeActiveTooltip();
 	}
 
 	// Helper method to add stylesheet
@@ -741,87 +823,5 @@ export default class LiveVariables extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
-	}
-
-	setupInlineVariableEditors(element: HTMLElement) {
-		// Find all inline variable editors
-		const editors = element.querySelectorAll('.inline-variable-editor input');
-		
-		editors.forEach((input: HTMLInputElement) => {
-			// Get the variable name
-			const variable = input.getAttribute('data-variable');
-			if (!variable) return;
-			
-			// Add an event listener to update the variable when the value changes
-			input.addEventListener('change', (e) => {
-				const newValue = (e.target as HTMLInputElement).value;
-				this.updateVariableValue(variable, newValue);
-			});
-		});
-	}
-	
-	// Update a variable value in the frontmatter
-	async updateVariableValue(variable: string, newValue: string) {
-		// Get the current active file
-		const activeFile = this.app.workspace.getActiveFile();
-		if (!activeFile) return;
-		
-		// Get the frontmatter
-		const metadata = this.app.metadataCache.getFileCache(activeFile)?.frontmatter;
-		if (!metadata) {
-			new Notice(`Couldn't find frontmatter in the current file`);
-			return;
-		}
-		
-		// Update the variable in the frontmatter
-		try {
-			// Read the file content
-			const fileContent = await this.app.vault.read(activeFile);
-			
-			// Find the frontmatter section
-			const frontmatterRegex = /^---\n([\s\S]*?)\n---/;
-			const match = frontmatterRegex.exec(fileContent);
-			
-			if (match) {
-				const frontmatter = match[1];
-				// Create regex to find the variable
-				const variableRegex = new RegExp(`^(${variable}\\s*:\\s*)(.*)$`, 'm');
-				const variableMatch = variableRegex.exec(frontmatter);
-				
-				if (variableMatch) {
-					// Variable exists in frontmatter, update it
-					const updatedFrontmatter = frontmatter.replace(
-						variableRegex,
-						`$1${newValue}`
-					);
-					
-					// Replace the frontmatter in the file content
-					const updatedContent = fileContent.replace(
-						frontmatterRegex,
-						`---\n${updatedFrontmatter}\n---`
-					);
-					
-					// Write the updated content back to the file
-					await this.app.vault.modify(activeFile, updatedContent);
-					
-					// Update the vault properties
-					this.vaultProperties.updateProperties(activeFile);
-					
-					// Refresh all variables in the view
-					this.refreshView(activeFile);
-					
-					new Notice(`Updated variable: ${variable}`);
-				} else {
-					// Variable not found in frontmatter
-					new Notice(`Variable ${variable} not found in frontmatter`);
-				}
-			} else {
-				// No frontmatter found
-				new Notice(`No frontmatter found in the current file`);
-			}
-		} catch (error) {
-			console.error('Error updating variable:', error);
-			new Notice(`Error updating variable: ${error}`);
-		}
 	}
 }
