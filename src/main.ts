@@ -51,6 +51,33 @@ export default class LiveVariables extends Plugin {
 				text-decoration: inherit !important;
 				pointer-events: inherit !important;
 			}
+			
+			.inline-variable-editor {
+				display: inline-flex;
+				align-items: center;
+				margin: 0 4px;
+				border-radius: 4px;
+				background-color: var(--background-secondary);
+				border: 1px solid var(--background-modifier-border);
+				padding: 2px 8px;
+			}
+			
+			.inline-variable-editor input {
+				background: transparent;
+				border: none;
+				color: var(--text-normal);
+				font-size: 14px;
+				padding: 2px 4px;
+				width: auto;
+				min-width: 120px;
+			}
+			
+			.inline-variable-editor .variable-name {
+				font-size: 12px;
+				opacity: 0.7;
+				margin-right: 8px;
+				white-space: nowrap;
+			}
 		`);
 
 		// Register markdown post processor for all content
@@ -80,12 +107,32 @@ export default class LiveVariables extends Plugin {
 					if (value !== undefined) {
 						const stringValue = this.stringifyValue(value);
 						const displayValue = this.settings.highlightDynamicVariables 
-							? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor} !important">${stringValue}</span>`
+							? `<span class="dynamic-variable">${stringValue}</span>`
 							: stringValue;
 						newText = newText.replace(match[0], displayValue);
 						modified = true;
 					}
 				});
+				
+				// Check for inline editable variables [{{-var-}}]
+				if (this.settings.enableInlineEditing) {
+					const inlineEditRegex = new RegExp(`\\[${startDelimiter}(.*?)${endDelimiter}\\]`, 'g');
+					let match;
+					while ((match = inlineEditRegex.exec(text)) !== null) {
+						const variable = match[1];
+						const value = this.vaultProperties.getProperty(variable);
+						if (value !== undefined) {
+							const stringValue = this.stringifyValue(value);
+							// Create an inline editor element instead of just displaying the value
+							const editorHtml = `<span class="inline-variable-editor" data-variable="${variable}">
+								<span class="variable-name">${variable}:</span>
+								<input type="text" class="inline-variable-input" value="${stringValue}" data-variable="${variable}">
+							</span>`;
+							newText = newText.replace(match[0], editorHtml);
+							modified = true;
+						}
+					}
+				}
 
 				if (modified) {
 					nodesToReplace.push({ node, newContent: newText });
@@ -102,6 +149,11 @@ export default class LiveVariables extends Plugin {
 				}
 				node.parentNode?.replaceChild(fragment, node);
 			});
+			
+			// Set up event listeners for inline variable editors
+			if (this.settings.enableInlineEditing) {
+				this.setupInlineVariableEditors(element);
+			}
 			
 			// Override code block copy functionality
 			this.modifyCodeBlockCopyButtons(element);
@@ -472,6 +524,75 @@ export default class LiveVariables extends Plugin {
 					codeBlock.innerHTML = processedCode;
 				}
 			});
+			
+			// Process inline editable variables [{{-var-}}]
+			if (this.settings.enableInlineEditing) {
+				// Find all text nodes in the document
+				const allElements = view.contentEl.querySelectorAll('*');
+				
+				allElements.forEach((element) => {
+					// Skip elements that are already inline editors
+					if (element.classList.contains('inline-variable-editor')) return;
+					
+					// Skip code blocks and their children
+					if (element.closest('pre')) return;
+					
+					// Process text nodes in this element
+					const walker = document.createTreeWalker(
+						element,
+						NodeFilter.SHOW_TEXT,
+						null
+					);
+					
+					let node: Text | null;
+					const nodesToReplace: { node: Text; newContent: string }[] = [];
+					
+					while ((node = walker.nextNode() as Text)) {
+						const text = node.textContent || '';
+						const startDelimiter = this.settings.variableDelimiters.start;
+						const endDelimiter = this.settings.variableDelimiters.end;
+						
+						// Look for the inline editable variable pattern
+						const inlineEditRegex = new RegExp(`\\[${startDelimiter}(.*?)${endDelimiter}\\]`, 'g');
+						let match;
+						let modified = false;
+						let newText = text;
+						
+						while ((match = inlineEditRegex.exec(text)) !== null) {
+							const variable = match[1];
+							const value = this.vaultProperties.getProperty(variable);
+							if (value !== undefined) {
+								const stringValue = this.stringifyValue(value);
+								// Create an inline editor element
+								const editorHtml = `<span class="inline-variable-editor" data-variable="${variable}">
+									<span class="variable-name">${variable}:</span>
+									<input type="text" class="inline-variable-input" value="${stringValue}" data-variable="${variable}">
+								</span>`;
+								newText = newText.replace(match[0], editorHtml);
+								modified = true;
+							}
+						}
+						
+						if (modified) {
+							nodesToReplace.push({ node, newContent: newText });
+						}
+					}
+					
+					// Apply all replacements
+					nodesToReplace.forEach(({ node, newContent }) => {
+						const tempDiv = document.createElement('div');
+						tempDiv.innerHTML = newContent;
+						const fragment = document.createDocumentFragment();
+						while (tempDiv.firstChild) {
+							fragment.appendChild(tempDiv.firstChild);
+						}
+						node.parentNode?.replaceChild(fragment, node);
+					});
+				});
+				
+				// Set up event listeners for the newly created inline editors
+				this.setupInlineVariableEditors(view.contentEl);
+			}
 		}
 	}
 
@@ -620,5 +741,87 @@ export default class LiveVariables extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+	}
+
+	setupInlineVariableEditors(element: HTMLElement) {
+		// Find all inline variable editors
+		const editors = element.querySelectorAll('.inline-variable-editor input');
+		
+		editors.forEach((input: HTMLInputElement) => {
+			// Get the variable name
+			const variable = input.getAttribute('data-variable');
+			if (!variable) return;
+			
+			// Add an event listener to update the variable when the value changes
+			input.addEventListener('change', (e) => {
+				const newValue = (e.target as HTMLInputElement).value;
+				this.updateVariableValue(variable, newValue);
+			});
+		});
+	}
+	
+	// Update a variable value in the frontmatter
+	async updateVariableValue(variable: string, newValue: string) {
+		// Get the current active file
+		const activeFile = this.app.workspace.getActiveFile();
+		if (!activeFile) return;
+		
+		// Get the frontmatter
+		const metadata = this.app.metadataCache.getFileCache(activeFile)?.frontmatter;
+		if (!metadata) {
+			new Notice(`Couldn't find frontmatter in the current file`);
+			return;
+		}
+		
+		// Update the variable in the frontmatter
+		try {
+			// Read the file content
+			const fileContent = await this.app.vault.read(activeFile);
+			
+			// Find the frontmatter section
+			const frontmatterRegex = /^---\n([\s\S]*?)\n---/;
+			const match = frontmatterRegex.exec(fileContent);
+			
+			if (match) {
+				const frontmatter = match[1];
+				// Create regex to find the variable
+				const variableRegex = new RegExp(`^(${variable}\\s*:\\s*)(.*)$`, 'm');
+				const variableMatch = variableRegex.exec(frontmatter);
+				
+				if (variableMatch) {
+					// Variable exists in frontmatter, update it
+					const updatedFrontmatter = frontmatter.replace(
+						variableRegex,
+						`$1${newValue}`
+					);
+					
+					// Replace the frontmatter in the file content
+					const updatedContent = fileContent.replace(
+						frontmatterRegex,
+						`---\n${updatedFrontmatter}\n---`
+					);
+					
+					// Write the updated content back to the file
+					await this.app.vault.modify(activeFile, updatedContent);
+					
+					// Update the vault properties
+					this.vaultProperties.updateProperties(activeFile);
+					
+					// Refresh all variables in the view
+					this.refreshView(activeFile);
+					
+					new Notice(`Updated variable: ${variable}`);
+				} else {
+					// Variable not found in frontmatter
+					new Notice(`Variable ${variable} not found in frontmatter`);
+				}
+			} else {
+				// No frontmatter found
+				new Notice(`No frontmatter found in the current file`);
+			}
+		} catch (error) {
+			console.error('Error updating variable:', error);
+			new Notice(`Error updating variable: ${error}`);
+		}
 	}
 }
