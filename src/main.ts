@@ -96,8 +96,14 @@ export default class LiveVariables extends Plugin {
 					copyButton.addEventListener('click', (e) => {
 						e.preventDefault();
 						e.stopPropagation();
-						const originalCode = codeBlock.getAttribute('data-original-code') || codeBlock.textContent || '';
-						navigator.clipboard.writeText(originalCode);
+						
+						// Get the displayed text (with variable values)
+						const displayedText = codeBlock.textContent || '';
+						
+						// Remove line numbers if they exist
+						const textWithoutLineNumbers = displayedText.replace(/^\d+\s+/gm, '');
+						
+						navigator.clipboard.writeText(textWithoutLineNumbers);
 					});
 				}
 			});
