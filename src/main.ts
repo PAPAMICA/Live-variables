@@ -407,62 +407,127 @@ export default class LiveVariables extends Plugin {
 
 	// New separate method to process text nodes for variables
 	processTextNodesForVariables(element: HTMLElement) {
-		// Process all text nodes in the document
+		// We'll use a more direct approach to process all HTML content at once
+		// This ensures we don't miss variables due to DOM fragmentation
+		
+		// 1. First identify all text nodes and paragraphs that might contain variables
+		const textElements = element.querySelectorAll('p, li, h1, h2, h3, h4, h5, h6, span:not(.dynamic-variable), div');
+		const startDelimiter = this.settings.variableDelimiters.start;
+		const endDelimiter = this.settings.variableDelimiters.end;
+		
+		const variableRegex = new RegExp(`${this.escapeRegExp(startDelimiter)}([^${this.escapeRegExp(endDelimiter)}]+)${this.escapeRegExp(endDelimiter)}`, 'g');
+		
+		textElements.forEach(el => {
+			// Skip certain elements that shouldn't be processed or are already processed
+			if (el.closest('pre') || el.classList.contains('dynamic-variable')) {
+				return;
+			}
+			
+			// Check if this element has any variable patterns
+			const html = el.innerHTML;
+			if (!html.includes(startDelimiter)) {
+				return; // Skip processing if no variables are found
+			}
+			
+			// Find all variables in the HTML content
+			const matches = [...html.matchAll(variableRegex)];
+			if (matches.length === 0) {
+				return;
+			}
+			
+			// Process the content with all variables
+			let newHtml = html;
+			let modified = false;
+			
+			// Sort matches by length (descending) to prevent partial replacements
+			const sortedMatches = matches.sort((a, b) => b[0].length - a[0].length);
+			
+			sortedMatches.forEach(match => {
+				const fullMatch = match[0]; // The full pattern including delimiters
+				const variable = match[1]; // Just the variable name
+				const value = this.vaultProperties.getProperty(variable);
+				
+				if (value !== undefined) {
+					const stringValue = this.stringifyValue(value);
+					const displayValue = this.settings.highlightDynamicVariables 
+						? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor} !important">${stringValue}</span>`
+						: stringValue;
+					
+					// Create a properly escaped regex for replacement
+					const escapedMatch = this.escapeRegExp(fullMatch);
+					const replaceRegex = new RegExp(escapedMatch, 'g');
+					
+					newHtml = newHtml.replace(replaceRegex, displayValue);
+					modified = true;
+				}
+			});
+			
+			// Update the element's content if we made changes
+			if (modified) {
+				el.innerHTML = newHtml;
+			}
+		});
+		
+		// Also check for orphaned text nodes outside of elements
 		const walker = document.createTreeWalker(
 			element,
 			NodeFilter.SHOW_TEXT,
 			null
 		);
-
+		
 		let node: Text | null;
 		const nodesToReplace: { node: Text; newContent: string }[] = [];
-
+		
 		while ((node = walker.nextNode() as Text)) {
-			const text = node.textContent || '';
-			const startDelimiter = this.settings.variableDelimiters.start;
-			const endDelimiter = this.settings.variableDelimiters.end;
+			// Skip empty nodes or nodes inside elements we already processed
+			if (!node.textContent || node.parentElement?.matches('p, li, h1, h2, h3, h4, h5, h6, span, div, pre, code')) {
+				continue;
+			}
 			
-			// Improved regex pattern to find all variable instances
-			const regex = new RegExp(`${this.escapeRegExp(startDelimiter)}([^${this.escapeRegExp(endDelimiter)}]+)${this.escapeRegExp(endDelimiter)}`, 'g');
+			const text = node.textContent;
+			if (!text.includes(startDelimiter)) {
+				continue; // Skip processing if no variables are found
+			}
 			
 			// Find all matches in the text
-			const matches = [...text.matchAll(regex)];
+			const matches = [...text.matchAll(variableRegex)];
+			if (matches.length === 0) {
+				continue;
+			}
 			
-			if (matches.length > 0) {
-				let newText = text;
-				let modified = false;
+			let newText = text;
+			let modified = false;
+			
+			// Sort matches by length to handle nested variables correctly
+			const sortedMatches = matches.sort((a, b) => b[0].length - a[0].length);
+			
+			// Process each match
+			sortedMatches.forEach((match) => {
+				const fullMatch = match[0]; // The full pattern including delimiters
+				const variable = match[1]; // Just the variable name
+				const value = this.vaultProperties.getProperty(variable);
 				
-				// Sort matches by length to handle nested variables correctly
-				const sortedMatches = matches.sort((a, b) => b[0].length - a[0].length);
-				
-				// Process each match
-				sortedMatches.forEach((match) => {
-					const fullMatch = match[0]; // The full pattern including delimiters
-					const variable = match[1]; // Just the variable name
-					const value = this.vaultProperties.getProperty(variable);
+				if (value !== undefined) {
+					const stringValue = this.stringifyValue(value);
+					const displayValue = this.settings.highlightDynamicVariables 
+						? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor} !important">${stringValue}</span>`
+						: stringValue;
 					
-					if (value !== undefined) {
-						const stringValue = this.stringifyValue(value);
-						const displayValue = this.settings.highlightDynamicVariables 
-							? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor} !important">${stringValue}</span>`
-							: stringValue;
-						
-						// Create a properly escaped regex for replacement
-						const escapedMatch = this.escapeRegExp(fullMatch);
-						const replaceRegex = new RegExp(escapedMatch, 'g');
-						
-						newText = newText.replace(replaceRegex, displayValue);
-						modified = true;
-					}
-				});
-
-				if (modified) {
-					nodesToReplace.push({ node, newContent: newText });
+					// Create a properly escaped regex for replacement
+					const escapedMatch = this.escapeRegExp(fullMatch);
+					const replaceRegex = new RegExp(escapedMatch, 'g');
+					
+					newText = newText.replace(replaceRegex, displayValue);
+					modified = true;
 				}
+			});
+			
+			if (modified) {
+				nodesToReplace.push({ node, newContent: newText });
 			}
 		}
-
-		// Apply all replacements
+		
+		// Apply all replacements to orphaned text nodes
 		nodesToReplace.forEach(({ node, newContent }) => {
 			const tempDiv = document.createElement('div');
 			tempDiv.innerHTML = newContent;
