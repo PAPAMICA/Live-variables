@@ -1,17 +1,17 @@
-# Live Variables Lite
+# Simple Live Variable
 
-A simplified version of the Live Variables plugin for Obsidian. This version keeps only the display, editing, and insertion functionality for variables.
+🇬🇧 A simplified version of the Live Variables plugin for Obsidian. This version keeps only the display, editing, and insertion functionality for variables.
 
-Une version simplifiée du plugin Live Variables pour Obsidian. Cette version conserve uniquement les fonctionnalités d'affichage, d'édition et d'insertion de variables.
+🇫🇷 Une version simplifiée du plugin Live Variables pour Obsidian. Cette version conserve uniquement les fonctionnalités d'affichage, d'édition et d'insertion de variables.
 
 ## Installation
-
+🇬🇧
 1. Create a `live-variables-lite` folder in your `.obsidian/plugins/` directory
 2. Copy the `main.js` and `manifest.json` files to this folder
 3. Restart Obsidian or enable the plugin in settings
 
 ---
-
+🇫🇷
 1. Créez un dossier `live-variables-lite` dans votre dossier `.obsidian/plugins/`
 2. Copiez les fichiers `main.js` et `manifest.json` dans ce dossier
 3. Redémarrez Obsidian ou activez le plugin dans les paramètres
@@ -26,7 +26,7 @@ Une version simplifiée du plugin Live Variables pour Obsidian. Cette version co
 
 ## How to use / Comment utiliser
 
-### English
+### 🇬🇧 English
 
 1. Add variables in the YAML frontmatter of your Markdown files:
 ```yaml
@@ -53,7 +53,7 @@ SSH connection: ssh {{user}}@{{ip}} -p {{port}}
    - Edit its value in the popup
    - Click "Save" or press Enter
 
-### Français
+### 🇫🇷 Français
 
 1. Ajoutez des variables dans le frontmatter YAML de vos fichiers Markdown :
 ```yaml
@@ -76,13 +76,13 @@ Connexion SSH : ssh {{user}}@{{ip}} -p {{port}}
    - Choisissez la variable à insérer dans la liste
 
 4. Pour modifier une variable :
-   - En mode prévisualisation, cliquez simplement sur n'importe quelle variable 
+   - En mode prévisualisation, cliquez simplement sur n'importe quelle variable
    - Modifiez sa valeur dans le popup
    - Cliquez sur "Enregistrer" ou appuyez sur Entrée
 
 ## Configuration
 
-### English
+### 🇬🇧 English
 
 In the plugin settings, you can:
 - Change the language between English and French
@@ -90,10 +90,10 @@ In the plugin settings, you can:
 - Enable/disable variable highlighting
 - Choose the color for highlighted variables
 
-### Français
+### 🇫🇷 Français
 
 Dans les paramètres du plugin, vous pouvez :
 - Changer la langue entre l'anglais et le français
 - Changer les délimiteurs pour les variables
 - Activer/désactiver la mise en évidence des variables
-- Choisir la couleur des variables 
+- Choisir la couleur des variables

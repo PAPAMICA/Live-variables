@@ -1,4 +1,4 @@
-# Live Variables Lite
+# Simple Live Variable
 
 Une version simplifiée du plugin Live Variables pour Obsidian. Cette version conserve uniquement les fonctionnalités d'affichage, d'édition et d'insertion de variables.
 

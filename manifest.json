@@ -1,10 +1,10 @@
 {
-	"id": "live-variables-lite",
-	"name": "Live Variables Lite",
+	"id": "simple-live-variables",
+	"name": "Simple Live Variables",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
 	"description": "Define variables in your note's frontmatter and reuse them throughout your content. Simplified version with editing and insertion features. Supports English and French.",
-	"author": "PAPAMICAplus",
-	"authorUrl": "https://github.com/PAPAMICAplus",
+	"author": "Mickael ASSELINE (PAPAMICA)",
+	"authorUrl": "https://github.com/PAPAMICA",
 	"isDesktopOnly": false
 }
