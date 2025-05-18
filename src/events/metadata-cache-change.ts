@@ -8,8 +8,8 @@ const metadataCacheChangeEvent = (plugin: LiveVariables) => plugin.app.metadataC
     if (propertyChanged) {
         const file = plugin.app.vault.getFileByPath(path.path);
         if (file) {
-            plugin.renderVariables(file);
             plugin.vaultProperties.updateProperties(file);
+            plugin.refreshView(file);
         }
     }
 })
