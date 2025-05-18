@@ -706,13 +706,54 @@ class VariableSelectionModal extends Modal {
 	
 	onOpen() {
 		const {contentEl} = this;
+		contentEl.addClass('variable-selection-modal');
 		const t = getTranslations(this.language);
 		
-		contentEl.createEl('h2', {text: t.ui.selectVariable});
+		// Create title with icon
+		const titleContainer = contentEl.createEl('div', {cls: 'modal-title-container'});
+		titleContainer.style.display = 'flex';
+		titleContainer.style.alignItems = 'center';
+		titleContainer.style.marginBottom = '16px';
 		
-		// Create search input
+		// Add icon
+		const iconSpan = titleContainer.createEl('span', {cls: 'modal-title-icon'});
+		iconSpan.innerHTML = `
+			<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+				<path d="M6 16l-4-4 4-4"></path>
+				<path d="M18 8l4 4-4 4"></path>
+				<path d="M12 4l-4 16"></path>
+			</svg>
+		`;
+		iconSpan.style.marginRight = '10px';
+		iconSpan.style.display = 'flex';
+		iconSpan.style.alignItems = 'center';
+		iconSpan.style.color = 'var(--interactive-accent)';
+		
+		// Add title text
+		titleContainer.createEl('h2', {
+			text: t.ui.selectVariable,
+			cls: 'modal-title'
+		}).style.margin = '0';
+		
+		// Create search input with icon
 		const searchContainer = contentEl.createEl('div', {cls: 'search-container'});
-		searchContainer.style.margin = '10px 0';
+		searchContainer.style.position = 'relative';
+		searchContainer.style.marginBottom = '16px';
+		
+		// Add search icon
+		const searchIconContainer = searchContainer.createEl('div', {cls: 'search-icon'});
+		searchIconContainer.innerHTML = `
+			<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+				<circle cx="11" cy="11" r="8"></circle>
+				<line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+			</svg>
+		`;
+		searchIconContainer.style.position = 'absolute';
+		searchIconContainer.style.left = '12px';
+		searchIconContainer.style.top = '50%';
+		searchIconContainer.style.transform = 'translateY(-50%)';
+		searchIconContainer.style.pointerEvents = 'none';
+		searchIconContainer.style.color = 'var(--text-muted)';
 		
 		this.searchInput = searchContainer.createEl('input', {
 			cls: 'search-input',
@@ -724,22 +765,48 @@ class VariableSelectionModal extends Modal {
 		
 		// Style the search input
 		this.searchInput.style.width = '100%';
-		this.searchInput.style.padding = '8px';
-		this.searchInput.style.borderRadius = '4px';
+		this.searchInput.style.padding = '10px 12px 10px 40px';
+		this.searchInput.style.fontSize = '14px';
+		this.searchInput.style.borderRadius = '6px';
 		this.searchInput.style.border = '1px solid var(--background-modifier-border)';
-		this.searchInput.style.backgroundColor = 'var(--background-primary)';
+		this.searchInput.style.backgroundColor = 'var(--background-secondary)';
 		this.searchInput.style.color = 'var(--text-normal)';
+		this.searchInput.style.boxShadow = 'inset 0 1px 4px rgba(0, 0, 0, 0.07)';
 		
 		// Focus the search input when the modal opens
 		setTimeout(() => this.searchInput.focus(), 10);
 		
+		// Create variables list container with header
+		const listContainer = contentEl.createEl('div', {cls: 'variables-container'});
+		listContainer.style.backgroundColor = 'var(--background-secondary)';
+		listContainer.style.borderRadius = '6px';
+		listContainer.style.overflow = 'hidden';
+		listContainer.style.border = '1px solid var(--background-modifier-border)';
+		
+		// Create header for the list
+		const listHeader = listContainer.createEl('div', {cls: 'variables-header'});
+		listHeader.style.display = 'flex';
+		listHeader.style.padding = '8px 16px';
+		listHeader.style.borderBottom = '1px solid var(--background-modifier-border)';
+		listHeader.style.backgroundColor = 'var(--background-secondary-alt)';
+		listHeader.style.fontSize = '12px';
+		listHeader.style.fontWeight = 'bold';
+		listHeader.style.color = 'var(--text-muted)';
+		listHeader.style.textTransform = 'uppercase';
+		
+		// Create two columns for key and value
+		const keyHeader = listHeader.createEl('div', {text: 'Key', cls: 'column-key'});
+		keyHeader.style.flex = '1';
+		
+		const valueHeader = listHeader.createEl('div', {text: 'Value', cls: 'column-value'});
+		valueHeader.style.flex = '1';
+		
 		// Create a list of variables
-		this.variableList = contentEl.createEl('div', {cls: 'variable-list'});
+		this.variableList = listContainer.createEl('div', {cls: 'variable-list'});
 		
 		// Style the list
-		this.variableList.style.maxHeight = '60vh';
+		this.variableList.style.maxHeight = '50vh';
 		this.variableList.style.overflowY = 'auto';
-		this.variableList.style.marginTop = '10px';
 		
 		// Add search functionality
 		this.searchInput.addEventListener('input', () => {
@@ -769,6 +836,45 @@ class VariableSelectionModal extends Modal {
 			}
 		});
 		
+		// Add a footer with keyboard shortcuts
+		const footerEl = contentEl.createEl('div', {cls: 'modal-footer'});
+		footerEl.style.marginTop = '16px';
+		footerEl.style.color = 'var(--text-muted)';
+		footerEl.style.fontSize = '12px';
+		footerEl.style.display = 'flex';
+		footerEl.style.justifyContent = 'space-between';
+		
+		// Keyboard shortcuts
+		const keyboardShortcuts = footerEl.createEl('div', {cls: 'keyboard-shortcuts'});
+		
+		const addShortcut = (container: HTMLElement, key: string, description: string) => {
+			const shortcutEl = container.createEl('span', {cls: 'keyboard-shortcut'});
+			shortcutEl.style.display = 'inline-flex';
+			shortcutEl.style.alignItems = 'center';
+			shortcutEl.style.marginRight = '12px';
+			
+			const keyEl = shortcutEl.createEl('kbd');
+			keyEl.style.background = 'var(--background-primary)';
+			keyEl.style.border = '1px solid var(--background-modifier-border)';
+			keyEl.style.boxShadow = '0 1px 0 0 var(--background-modifier-border)';
+			keyEl.style.borderRadius = '4px';
+			keyEl.style.padding = '2px 6px';
+			keyEl.style.fontSize = '11px';
+			keyEl.style.margin = '0 4px';
+			keyEl.textContent = key;
+			
+			const descEl = shortcutEl.createEl('span');
+			descEl.textContent = description;
+		};
+		
+		addShortcut(keyboardShortcuts, '↑↓', this.language === 'en' ? 'Navigate' : 'Naviguer');
+		addShortcut(keyboardShortcuts, 'Enter', this.language === 'en' ? 'Select' : 'Sélectionner');
+		addShortcut(keyboardShortcuts, 'Esc', this.language === 'en' ? 'Cancel' : 'Annuler');
+		
+		// Variables count
+		const countEl = footerEl.createEl('div', {cls: 'variables-count'});
+		countEl.textContent = `${this.variables.length} ${this.language === 'en' ? 'variables' : 'variables'}`;
+		
 		// Render the initial list
 		this.renderVariableList();
 	}
@@ -787,6 +893,12 @@ class VariableSelectionModal extends Modal {
 		
 		// Re-render the list with the filtered variables
 		this.renderVariableList();
+		
+		// Update the count in the footer
+		const countEl = document.querySelector('.variables-count');
+		if (countEl) {
+			countEl.textContent = `${this.displayedVariables.length}/${this.variables.length} ${this.language === 'en' ? 'variables' : 'variables'}`;
+		}
 	}
 	
 	renderVariableList() {
@@ -796,27 +908,52 @@ class VariableSelectionModal extends Modal {
 		// Check if we have any matching variables
 		if (this.displayedVariables.length === 0) {
 			const t = getTranslations(this.language);
-			this.variableList.createEl('div', {
+			const noResults = this.variableList.createEl('div', {
 				cls: 'no-results',
 				text: t.ui.noVariables
-			}).style.padding = '8px';
+			});
+			
+			noResults.style.padding = '16px';
+			noResults.style.textAlign = 'center';
+			noResults.style.color = 'var(--text-muted)';
+			noResults.style.fontStyle = 'italic';
 			return;
 		}
 		
 		// Add each variable as a clickable item
 		this.displayedVariables.forEach((variable, index) => {
 			const varItem = this.variableList.createEl('div', {
-				cls: 'variable-item',
-				text: `${variable.key}: ${this.formatValue(variable.value)}`
+				cls: 'variable-item'
 			});
 			
 			// Style the item
-			varItem.style.padding = '8px';
-			varItem.style.margin = '4px 0';
-			varItem.style.borderRadius = '4px';
+			varItem.style.display = 'flex';
+			varItem.style.padding = '10px 16px';
 			varItem.style.cursor = 'pointer';
-			varItem.style.backgroundColor = 'var(--background-secondary)';
+			varItem.style.borderBottom = '1px solid var(--background-modifier-border-hover)';
+			varItem.style.transition = 'background-color 150ms ease';
 			varItem.style.outline = 'none'; // Remove default outline
+			
+			// Two columns layout
+			const keyEl = varItem.createEl('div', {
+				cls: 'variable-key',
+				text: variable.key
+			});
+			keyEl.style.flex = '1';
+			keyEl.style.fontWeight = 'bold';
+			keyEl.style.textOverflow = 'ellipsis';
+			keyEl.style.overflow = 'hidden';
+			keyEl.style.whiteSpace = 'nowrap';
+			
+			const valueEl = varItem.createEl('div', {
+				cls: 'variable-value',
+				text: this.formatValue(variable.value)
+			});
+			valueEl.style.flex = '1';
+			valueEl.style.color = 'var(--text-muted)';
+			valueEl.style.textOverflow = 'ellipsis';
+			valueEl.style.overflow = 'hidden';
+			valueEl.style.whiteSpace = 'nowrap';
 			
 			// Make item focusable and set data attribute for identification
 			varItem.tabIndex = 0;
@@ -825,11 +962,11 @@ class VariableSelectionModal extends Modal {
 			// Add keyboard support with extra styling on focus
 			varItem.addEventListener('focus', () => {
 				varItem.style.backgroundColor = 'var(--background-modifier-hover)';
-				varItem.style.boxShadow = '0 0 0 2px var(--interactive-accent)';
+				varItem.style.boxShadow = 'inset 3px 0 0 0 var(--interactive-accent)';
 			});
 			
 			varItem.addEventListener('blur', () => {
-				varItem.style.backgroundColor = 'var(--background-secondary)';
+				varItem.style.backgroundColor = '';
 				varItem.style.boxShadow = 'none';
 			});
 			
@@ -866,7 +1003,7 @@ class VariableSelectionModal extends Modal {
 			
 			varItem.addEventListener('mouseleave', () => {
 				if (document.activeElement !== varItem) {
-					varItem.style.backgroundColor = 'var(--background-secondary)';
+					varItem.style.backgroundColor = '';
 				}
 			});
 			
@@ -877,6 +1014,11 @@ class VariableSelectionModal extends Modal {
 				this.onChoose(variable);
 				this.close();
 			});
+			
+			// Last item should not have a border
+			if (index === this.displayedVariables.length - 1) {
+				varItem.style.borderBottom = 'none';
+			}
 		});
 	}
 	
