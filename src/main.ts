@@ -97,18 +97,22 @@ export default class LiveVariables extends Plugin {
 						e.preventDefault();
 						e.stopPropagation();
 
-						// Get the raw text content
-						const rawText = codeBlock.textContent || '';
+						// Get the original code
+						const originalCode = codeBlock.getAttribute('data-original-code') || codeBlock.textContent || '';
 						
-						// Split into lines and clean each line
-						const lines = rawText.split('\n');
-						const cleanedLines = lines.map(line => {
-							// Remove any number at the start of the line followed by any whitespace
-							return line.replace(/^\d+\s*/, '');
-						}).filter(line => line.length > 0); // Remove empty lines
+						// Replace variables with their values
+						let finalText = originalCode;
+						const startDelimiter = this.settings.variableDelimiters.start;
+						const endDelimiter = this.settings.variableDelimiters.end;
+						const regex = new RegExp(`${startDelimiter}(.*?)${endDelimiter}`, 'g');
 						
-						// Join lines back together
-						const finalText = cleanedLines.join('\n');
+						[...originalCode.matchAll(regex)].forEach((match) => {
+							const variable = match[1];
+							const value = this.vaultProperties.getProperty(variable);
+							if (value !== undefined) {
+								finalText = finalText.replace(match[0], this.stringifyValue(value));
+							}
+						});
 
 						navigator.clipboard.writeText(finalText);
 					});
