@@ -452,33 +452,20 @@ export default class LiveVariables extends Plugin {
 					const startDelimiterEscaped = escapeRegExp(startDelimiter);
 					const endDelimiterEscaped = escapeRegExp(endDelimiter);
 					
-					// Store replacements as [search, replace] pairs
-					const replacements: [string, string][] = [];
+					// Create a regex that matches all variable patterns
+					const variablePattern = `${startDelimiterEscaped}(${variables.join('|')})${endDelimiterEscaped}`;
+					const regex = new RegExp(variablePattern, 'g');
 					
-					// Process each variable
-					variables.forEach((variable: string) => {
+					// Replace all matches in a single pass
+					processedCode = processedCode.replace(regex, (match, variable) => {
 						const value = this.vaultProperties.getProperty(variable);
 						if (value !== undefined) {
 							const stringValue = this.stringifyValue(value);
-							const searchPattern = `${startDelimiter}${variable}${endDelimiter}`;
-							
-							// Create replacement HTML
-							let replacement = stringValue;
-							if (this.settings.highlightDynamicVariables) {
-								replacement = `<span class="dynamic-variable">${stringValue}</span>`;
-							}
-							
-							// Add to replacements list
-							replacements.push([searchPattern, replacement]);
+							return this.settings.highlightDynamicVariables
+								? `<span class="dynamic-variable">${stringValue}</span>`
+								: stringValue;
 						}
-					});
-					
-					// Apply all replacements
-					replacements.forEach(([search, replace]) => {
-						// Create a regex with global flag for multiple replacements
-						const searchEscaped = escapeRegExp(search);
-						const regex = new RegExp(searchEscaped, 'g');
-						processedCode = processedCode.replace(regex, replace);
+						return match;
 					});
 					
 					// Set the HTML directly
