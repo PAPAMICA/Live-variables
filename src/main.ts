@@ -103,11 +103,11 @@ export default class LiveVariables extends Plugin {
 						// Split into lines and clean each line
 						const lines = rawText.split('\n');
 						const cleanedLines = lines.map(line => {
-							// Remove line numbers and any leading/trailing whitespace
-							return line.replace(/^\d+\s*/, '').trim();
-						});
+							// Remove any number at the start of the line followed by any whitespace
+							return line.replace(/^\d+\s*/, '');
+						}).filter(line => line.length > 0); // Remove empty lines
 						
-						// Join lines back together, preserving empty lines
+						// Join lines back together
 						const finalText = cleanedLines.join('\n');
 
 						navigator.clipboard.writeText(finalText);
