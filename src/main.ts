@@ -330,17 +330,17 @@ export default class LiveVariables extends Plugin {
 			});
 			
 			// Save button updates the variable and closes tooltip
-			saveBtn.addEventListener('click', () => {
+			saveBtn.addEventListener('click', async () => {
 				const newValue = (inputEl as HTMLInputElement).value;
-				this.updateVariableValue(variable, newValue);
+				await this.updateVariableValue(variable, newValue);
 				this.closeActiveTooltip();
 			});
 			
 			// Enter key also saves
-			inputEl.addEventListener('keydown', (e) => {
+			inputEl.addEventListener('keydown', async (e) => {
 				if (e.key === 'Enter') {
 					const newValue = (inputEl as HTMLInputElement).value;
-					this.updateVariableValue(variable, newValue);
+					await this.updateVariableValue(variable, newValue);
 					this.closeActiveTooltip();
 				} else if (e.key === 'Escape') {
 					this.closeActiveTooltip();
@@ -375,26 +375,93 @@ export default class LiveVariables extends Plugin {
 	}
 	
 	// Update a variable value and refresh all instances
-	updateVariableValue(variable: string, newValue: string) {
-		// Here you would update the variable in your data model
-		// This is a simplified example - you'll need to implement how 
-		// to actually update your variable storage
+	async updateVariableValue(variable: string, newValue: string) {
+		try {
+			// Mettre à jour la variable (attendre que l'opération soit terminée)
+			await this.vaultProperties.temporaryUpdateVariable(variable, newValue);
+			
+			// Notifier l'utilisateur
+			new Notice(`Variable "${variable}" mise à jour`);
+			
+			// Forcer le rafraîchissement de la vue active
+			const activeLeaf = this.app.workspace.activeLeaf;
+			if (activeLeaf && activeLeaf.view instanceof MarkdownView && activeLeaf.view.file) {
+				const file = activeLeaf.view.file;
+				
+				// 1. Rafraîchir la vue active
+				this.refreshView(file);
+				
+				// 2. Forcer une reconstruction complète du DOM pour les variables affichées
+				setTimeout(() => {
+					if (activeLeaf.view instanceof MarkdownView) {
+						const view = activeLeaf.view;
+						
+						// Forcer un rerendu complet si en mode prévisualisation
+						if (view.getMode() === 'preview') {
+							view.previewMode.rerender(true);
+							
+							// Attendre que le DOM soit mis à jour puis réappliquer les changements
+							setTimeout(() => {
+								this.updateCodeBlocksWithVariables(view);
+								
+								// Réappliquer les gestionnaires de clics pour les variables mises à jour
+								this.setupVariableEditHandlers(view.containerEl);
+								
+								// Mettre à jour les boutons de copie
+								this.modifyCodeBlockCopyButtons(view.containerEl);
+							}, 100);
+						}
+						
+						// Déclencher un événement global pour forcer la mise à jour
+						this.app.workspace.trigger('live-variables:variable-updated', variable, newValue);
+					}
+				}, 50);
+			}
+			
+			// Aussi rafraîchir toutes les autres vues qui pourraient utiliser cette variable
+			this.app.workspace.iterateRootLeaves(leaf => {
+				if (leaf !== this.app.workspace.activeLeaf && 
+					leaf.view instanceof MarkdownView && 
+					leaf.view.file) {
+					// Rafraîchir chaque vue ouverte
+					this.refreshView(leaf.view.file);
+				}
+			});
+			
+			// Forcer un rafraîchissement global après un court délai
+			setTimeout(() => {
+				this.forceGlobalRefresh();
+			}, 200);
+		} catch (error) {
+			console.error("Erreur lors de la mise à jour de la variable:", error);
+			new Notice(`Erreur lors de la mise à jour de la variable: ${error.message}`);
+		}
+	}
+	
+	// Force a global refresh of all views
+	forceGlobalRefresh() {
+		// Essai de différentes approches pour forcer le rafraîchissement complet
 		
-		// Temporary implementation that just stores the value in the property map
-		// Dans une version réelle, vous devrez mettre à jour la valeur dans le fichier frontmatter
-		this.vaultProperties.temporaryUpdateVariable(variable, newValue);
+		// 1. Forcer un redimensionnement, ce qui déclenche souvent un reflow
+		this.app.workspace.trigger('resize');
 		
-		// Notify the user
-		new Notice(`Variable ${variable} mise à jour`);
+		// 2. Forcer un recalcul des propriétés du vault
+		this.vaultProperties.updateVaultProperties();
 		
-		// Refresh all views to show the new value
-		this.app.workspace.iterateRootLeaves(leaf => {
-			if (leaf.view instanceof MarkdownView && leaf.view.file) {
-				this.refreshView(leaf.view.file);
+		// 3. Rafraîchir toutes les vues markdown
+		this.app.workspace.iterateAllLeaves(leaf => {
+			if (leaf.view instanceof MarkdownView) {
+				if (leaf.view.getMode() === 'preview') {
+					// Forcer le rendu de la prévisualisation
+					leaf.view.previewMode.rerender(true);
+				} else {
+					// Rafraîchir l'éditeur
+					leaf.view.editor.refresh();
+				}
 			}
 		});
 	}
-	
+
 	modifyCodeBlockCopyButtons(element: HTMLElement) {
 		// Find all code blocks with copy buttons in the given element
 		const preElements = element.querySelectorAll('pre');
@@ -515,26 +582,68 @@ export default class LiveVariables extends Plugin {
 	refreshView(file: TFile) {
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 		if (view && view.file === file) {
-			// Update vault properties
+			// Mettre à jour les propriétés du vault
 			this.vaultProperties.updateProperties(file);
 
 			// Force a complete refresh of the view
 			if (view.getMode() === 'preview') {
-				// For preview mode, we need to force a complete re-render
-				view.previewMode.rerender();
+				// Pour le mode prévisualisation, forcer un rerendu complet
+				view.previewMode.rerender(true);
+				
+				// Attendre que le DOM soit mis à jour
+				setTimeout(() => {
+					// Mettre à jour tous les blocs de code avec variables
+					this.updateCodeBlocksWithVariables(view);
+					
+					// Réinstaller les gestionnaires d'édition au clic
+					this.setupVariableEditHandlers(view.contentEl);
+					
+					// Mettre à jour les boutons de copie
+					this.modifyCodeBlockCopyButtons(view.contentEl);
+					
+					// Forcer un rafraîchissement complet de l'espace de travail
+					this.app.workspace.trigger('resize');
+				}, 100);
 			} else {
-				// For source mode, we need to refresh the editor
+				// Pour le mode source, rafraîchir l'éditeur
 				view.editor.refresh();
+				
+				// Forcer un rafraîchissement complet de l'espace de travail
+				this.app.workspace.trigger('resize');
 			}
-
-			// Force a complete refresh of the workspace
-			this.app.workspace.trigger('resize');
-
-			// Update all code blocks with variables
-			this.updateCodeBlocksWithVariables(view);
-			
-			// Also update the copy buttons
-			this.modifyCodeBlockCopyButtons(view.contentEl);
+		} else {
+			// Si la vue active n'est pas celle du fichier demandé,
+			// rechercher dans toutes les feuilles pour trouver la bonne vue
+			let foundView = false;
+			this.app.workspace.iterateAllLeaves(leaf => {
+				if (!foundView && leaf.view instanceof MarkdownView && leaf.view.file === file) {
+					foundView = true;
+					// Mettre à jour les propriétés du vault
+					this.vaultProperties.updateProperties(file);
+					
+					// Forcer un rerendu complet si en mode prévisualisation
+					if (leaf.view.getMode() === 'preview') {
+						leaf.view.previewMode.rerender(true);
+						
+						// Attendre que le DOM soit mis à jour
+						setTimeout(() => {
+							// Mettre à jour tous les blocs de code avec variables
+							this.updateCodeBlocksWithVariables(leaf.view as MarkdownView);
+							
+							// Réinstaller les gestionnaires d'édition au clic
+							if (leaf.view instanceof MarkdownView) {
+								this.setupVariableEditHandlers(leaf.view.containerEl);
+								
+								// Mettre à jour les boutons de copie
+								this.modifyCodeBlockCopyButtons(leaf.view.containerEl);
+							}
+						}, 100);
+					} else {
+						// Pour le mode source, rafraîchir l'éditeur
+						leaf.view.editor.refresh();
+					}
+				}
+			});
 		}
 	}
 

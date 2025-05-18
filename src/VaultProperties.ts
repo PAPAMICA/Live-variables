@@ -47,7 +47,7 @@ export default class VaultProperties {
 		return false;
 	};
 
-	private updateVaultProperties() {
+	updateVaultProperties() {
 		this.properties = this.getDirectoryTree(this.vaultBasePath);
 	}
 
@@ -231,10 +231,190 @@ export default class VaultProperties {
 	// Note: Cette mise à jour ne persiste que pour la session en cours
 	// et sera perdue au redémarrage du plugin ou d'Obsidian
 	temporaryUpdateVariable(path: string, value: any) {
+		// Stocker la valeur dans notre Map temporaire
 		this.temporaryVariables.set(path, value);
 		
-		// Dans une implémentation réelle, vous voudriez mettre à jour le frontmatter du fichier
-		// et le sauvegarder sur le disque pour une persistance réelle
-		console.log(`Variable ${path} temporairement mise à jour avec la valeur ${value}`);
+		// Essayer de mettre à jour de manière permanente si possible
+		// Cela ne fonctionnera que pour les variables locales du fichier actif
+		const currentFile = this.app.workspace.getActiveFile();
+		if (currentFile) {
+			// Essayons de mettre à jour dans le frontmatter
+			try {
+				// Pour les variables globales
+				if (path.includes('/')) {
+					const [filePath, propPath] = path.split('/');
+					const targetFile = this.app.vault.getFileByPath(filePath);
+					if (targetFile) {
+						this.updateFrontmatterProperty(targetFile, propPath, value);
+					}
+				} 
+				// Pour les variables locales
+				else {
+					this.updateFrontmatterProperty(currentFile, path, value);
+				}
+			} catch (error) {
+				console.error("Erreur lors de la mise à jour du frontmatter:", error);
+			}
+		}
+		
+		console.log(`Variable ${path} mise à jour avec la valeur ${value}`);
+	}
+	
+	// Méthode pour mettre à jour une propriété dans le frontmatter d'un fichier
+	async updateFrontmatterProperty(file: TFile, propertyPath: string, value: any) {
+		try {
+			// Obtenir le contenu actuel du fichier
+			const fileContent = await this.app.vault.read(file);
+			
+			// Vérifier si le fichier a un frontmatter
+			if (!fileContent.startsWith("---")) {
+				// Créer un nouveau frontmatter avec la propriété
+				const formattedValue = this.formatValueForYaml(value);
+				const newFileContent = `---\n${propertyPath}: ${formattedValue}\n---\n\n${fileContent}`;
+				
+				// Sauvegarder les changements
+				await this.app.vault.modify(file, newFileContent);
+				console.log(`Nouveau frontmatter créé avec la propriété ${propertyPath} dans ${file.path}`);
+				return;
+			}
+			
+			// Trouver la fin du frontmatter
+			const endOfFrontmatter = fileContent.indexOf("---", 3);
+			if (endOfFrontmatter === -1) {
+				// Frontmatter mal formé, essayer de le réparer
+				const formattedValue = this.formatValueForYaml(value);
+				const newFileContent = `---\n${propertyPath}: ${formattedValue}\n---\n\n${fileContent.substring(3)}`;
+				
+				// Sauvegarder les changements
+				await this.app.vault.modify(file, newFileContent);
+				console.log(`Frontmatter réparé avec la propriété ${propertyPath} dans ${file.path}`);
+				return;
+			}
+			
+			// Extraire le frontmatter
+			const frontmatter = fileContent.substring(3, endOfFrontmatter).trim();
+			const restOfFile = fileContent.substring(endOfFrontmatter);
+			
+			// Pour les propriétés simples (sans points)
+			if (!propertyPath.includes('.')) {
+				// Chercher la ligne correspondant à la propriété
+				const regex = new RegExp(`^${propertyPath}\\s*:.*$`, 'm');
+				const match = frontmatter.match(regex);
+				
+				let newFrontmatter;
+				// Si la propriété existe déjà, la remplacer
+				if (match) {
+					const formattedValue = this.formatValueForYaml(value);
+					newFrontmatter = frontmatter.replace(
+						regex, 
+						`${propertyPath}: ${formattedValue}`
+					);
+				} 
+				// Sinon, l'ajouter à la fin du frontmatter
+				else {
+					const formattedValue = this.formatValueForYaml(value);
+					newFrontmatter = `${frontmatter}\n${propertyPath}: ${formattedValue}`;
+				}
+				
+				// Reconstruire le fichier avec le nouveau frontmatter
+				const newFileContent = `---\n${newFrontmatter}\n${restOfFile}`;
+				
+				// Sauvegarder les changements
+				await this.app.vault.modify(file, newFileContent);
+				console.log(`Propriété ${propertyPath} mise à jour dans ${file.path}`);
+			}
+			// Pour les propriétés imbriquées (avec des points), c'est plus complexe
+			// Dans une implémentation réelle, vous pourriez utiliser une bibliothèque YAML
+			else {
+				// Une implémentation simple pour les propriétés à un niveau d'imbrication
+				const [parent, child] = propertyPath.split('.');
+				
+				if (child) { // S'assurer qu'il y a bien une propriété enfant
+					// Chercher la ligne parent
+					const parentRegex = new RegExp(`^${parent}\\s*:.*$`, 'm');
+					const parentMatch = frontmatter.match(parentRegex);
+					
+					let newFrontmatter;
+					if (parentMatch) {
+						// Vérifier si c'est un objet ou une valeur simple
+						const parentLine = parentMatch[0];
+						const indentedRegex = new RegExp(`^(\\s+)${child}\\s*:.*$`, 'm');
+						const indentedMatch = frontmatter.match(indentedRegex);
+						
+						if (indentedMatch) {
+							// La propriété enfant existe, la remplacer
+							const formattedValue = this.formatValueForYaml(value);
+							newFrontmatter = frontmatter.replace(
+								indentedRegex,
+								`${indentedMatch[1]}${child}: ${formattedValue}`
+							);
+						} else {
+							// Faut-il convertir le parent en objet?
+							if (parentLine.trim().endsWith(':')) {
+								// Le parent est déjà un objet, ajouter la propriété enfant
+								const formattedValue = this.formatValueForYaml(value);
+								newFrontmatter = frontmatter.replace(
+									parentRegex,
+									`${parentMatch[0]}\n  ${child}: ${formattedValue}`
+								);
+							} else {
+								// Le parent est une valeur simple, on doit le convertir en objet
+								const formattedValue = this.formatValueForYaml(value);
+								newFrontmatter = frontmatter.replace(
+									parentRegex,
+									`${parent}:\n  ${child}: ${formattedValue}`
+								);
+							}
+						}
+					} else {
+						// Le parent n'existe pas, créer l'objet complet
+						const formattedValue = this.formatValueForYaml(value);
+						newFrontmatter = `${frontmatter}\n${parent}:\n  ${child}: ${formattedValue}`;
+					}
+					
+					// Reconstruire le fichier avec le nouveau frontmatter
+					const newFileContent = `---\n${newFrontmatter}\n${restOfFile}`;
+					
+					// Sauvegarder les changements
+					await this.app.vault.modify(file, newFileContent);
+					console.log(`Propriété imbriquée ${propertyPath} mise à jour dans ${file.path}`);
+				} else {
+					console.log(`Propriété imbriquée ${propertyPath} mal formée`);
+				}
+			}
+		} catch (error) {
+			console.error("Erreur lors de la mise à jour du frontmatter:", error);
+			throw error; // Propager l'erreur
+		}
+	}
+	
+	// Formater une valeur pour YAML
+	formatValueForYaml(value: any): string {
+		// Si c'est une chaîne
+		if (typeof value === 'string') {
+			// Si la chaîne contient des caractères spéciaux, l'entourer de guillemets
+			if (value.match(/[:#\[\]{},%&*()='"|><]/)) {
+				// Échapper les guillemets dans la chaîne
+				const escapedValue = value.replace(/"/g, '\\"');
+				return `"${escapedValue}"`;
+			}
+			return value;
+		}
+		// Si c'est un nombre ou un booléen
+		else if (typeof value === 'number' || typeof value === 'boolean') {
+			return value.toString();
+		}
+		// Si c'est null ou undefined
+		else if (value === null || value === undefined) {
+			return 'null';
+		}
+		// Si c'est un objet ou un tableau, le convertir en JSON
+		else {
+			try {
+				return JSON.stringify(value);
+			} catch {
+				return String(value);
+			}
+		}
 	}
 }
