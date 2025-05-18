@@ -33,9 +33,125 @@ export default class LiveVariables extends Plugin {
 
 		this.addSettingTab(new LiveVariablesSettingTab(this.app, this));
 
-		// Register event for when layout is ready
-		this.app.workspace.onLayoutReady(() => {
-			this.processVariablesInAllElements();
+		// Register markdown post processor for all content
+		this.registerMarkdownPostProcessor((element) => {
+			// Process all text nodes in the document
+			const walker = document.createTreeWalker(
+				element,
+				NodeFilter.SHOW_TEXT,
+				null
+			);
+
+			let node: Text | null;
+			const nodesToReplace: { node: Text; newContent: string }[] = [];
+
+			while ((node = walker.nextNode() as Text)) {
+				// Skip if the node is inside a code block
+				if (node.parentElement?.closest('pre code')) {
+					continue;
+				}
+
+				const text = node.textContent || '';
+				const startDelimiter = this.settings.variableDelimiters.start;
+				const endDelimiter = this.settings.variableDelimiters.end;
+				const regex = new RegExp(`${startDelimiter}(.*?)${endDelimiter}`, 'g');
+				
+				let modified = false;
+				let newText = text;
+
+				[...text.matchAll(regex)].forEach((match) => {
+					const variable = match[1];
+					const value = this.vaultProperties.getProperty(variable);
+					if (value !== undefined) {
+						const stringValue = this.stringifyValue(value);
+						const displayValue = this.settings.highlightDynamicVariables 
+							? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor} !important">${stringValue}</span>`
+							: stringValue;
+						newText = newText.replace(match[0], displayValue);
+						modified = true;
+					}
+				});
+
+				if (modified) {
+					nodesToReplace.push({ node, newContent: newText });
+				}
+			}
+
+			// Apply all replacements
+			nodesToReplace.forEach(({ node, newContent }) => {
+				const tempDiv = document.createElement('div');
+				tempDiv.innerHTML = newContent;
+				const fragment = document.createDocumentFragment();
+				while (tempDiv.firstChild) {
+					fragment.appendChild(tempDiv.firstChild);
+				}
+				node.parentNode?.replaceChild(fragment, node);
+			});
+
+			// Process code blocks separately
+			const codeBlocks = element.querySelectorAll('pre code');
+			codeBlocks.forEach((codeBlock) => {
+				const text = codeBlock.textContent || '';
+				const startDelimiter = this.settings.variableDelimiters.start;
+				const endDelimiter = this.settings.variableDelimiters.end;
+				const regex = new RegExp(`${startDelimiter}(.*?)${endDelimiter}`, 'g');
+				
+				let modified = false;
+				let newText = text;
+				const originalCode = text;
+
+				const matchedVariables = [...text.matchAll(regex)].map(match => match[1]);
+				if (matchedVariables.length > 0) {
+					codeBlock.setAttribute('data-original-code', originalCode);
+					codeBlock.setAttribute('data-variables', JSON.stringify(matchedVariables));
+				}
+
+				[...text.matchAll(regex)].forEach((match) => {
+					const variable = match[1];
+					const value = this.vaultProperties.getProperty(variable);
+					if (value !== undefined) {
+						const stringValue = this.stringifyValue(value);
+						newText = newText.replace(match[0], stringValue);
+						modified = true;
+					}
+				});
+
+				if (modified) {
+					codeBlock.textContent = newText;
+					
+					// Add copy button if not already present
+					if (codeBlock.parentElement && !codeBlock.parentElement.querySelector('.copy-code-button')) {
+						const copyButton = document.createElement('button');
+						copyButton.className = 'copy-code-button';
+						copyButton.innerText = 'Copy';
+						copyButton.style.position = 'absolute';
+						copyButton.style.top = '5px';
+						copyButton.style.right = '5px';
+						copyButton.style.zIndex = '1';
+						copyButton.style.fontSize = '12px';
+						copyButton.style.padding = '2px 5px';
+						copyButton.style.background = '#f5f5f5';
+						copyButton.style.border = '1px solid #ddd';
+						copyButton.style.borderRadius = '3px';
+						copyButton.style.cursor = 'pointer';
+						
+						codeBlock.parentElement.style.position = 'relative';
+						
+						copyButton.addEventListener('click', () => {
+							navigator.clipboard.writeText(newText).then(() => {
+								copyButton.innerText = 'Copied!';
+								setTimeout(() => {
+									copyButton.innerText = 'Copy';
+								}, 2000);
+							}).catch(err => {
+								console.error('Failed to copy: ', err);
+							});
+						});
+						
+						codeBlock.parentElement.appendChild(copyButton);
+					}
+				}
+			});
 		});
 
 		// Register file change event
@@ -44,8 +160,19 @@ export default class LiveVariables extends Plugin {
 				// Update vault properties immediately
 				this.vaultProperties.updateProperties(file);
 				
-				// Process variables in the document
-				this.processVariablesInAllElements();
+				// Get the active view
+				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+				if (view && view.file === file) {
+					// Force a complete refresh of the view
+					if (view.getMode() === 'preview') {
+						view.previewMode.rerender();
+					} else {
+						view.editor.refresh();
+					}
+					
+					// Force a complete refresh of the workspace
+					this.app.workspace.trigger('resize');
+				}
 			})
 		);
 
@@ -55,8 +182,19 @@ export default class LiveVariables extends Plugin {
 				// Update vault properties immediately
 				this.vaultProperties.updateProperties(file);
 				
-				// Process variables in the document
-				this.processVariablesInAllElements();
+				// Get the active view
+				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+				if (view && view.file === file) {
+					// Force a complete refresh of the view
+					if (view.getMode() === 'preview') {
+						view.previewMode.rerender();
+					} else {
+						view.editor.refresh();
+					}
+					
+					// Force a complete refresh of the workspace
+					this.app.workspace.trigger('resize');
+				}
 			})
 		);
 
@@ -67,159 +205,18 @@ export default class LiveVariables extends Plugin {
 					// Update vault properties immediately
 					this.vaultProperties.updateProperties(view.file);
 					
-					// Process variables in the document
-					this.processVariablesInAllElements();
+					// Force a complete refresh of the view
+					if (view.getMode() === 'preview') {
+						view.previewMode.rerender();
+					} else {
+						view.editor.refresh();
+					}
+					
+					// Force a complete refresh of the workspace
+					this.app.workspace.trigger('resize');
 				}
 			})
 		);
-
-		// Register event for when the view is updated
-		this.registerEvent(
-			this.app.workspace.on('layout-change', () => {
-				this.processVariablesInAllElements();
-			})
-		);
-	}
-
-	processVariablesInAllElements() {
-		// Get the active markdown view
-		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-		if (!view) return;
-
-		// Process all text elements outside code blocks
-		const textElements = view.contentEl.querySelectorAll('p, li, blockquote, th, td, h1, h2, h3, h4, h5, h6, .callout-title-inner');
-		textElements.forEach((element) => {
-			this.processVariablesInElement(element);
-		});
-
-		// Process all code blocks
-		const codeBlocks = view.contentEl.querySelectorAll('pre code');
-		codeBlocks.forEach((codeBlock) => {
-			this.processVariablesInCodeBlock(codeBlock as HTMLElement);
-		});
-
-		// Add a click event listener to all copy buttons for code blocks
-		const copyButtons = view.contentEl.querySelectorAll('.copy-code-button');
-		copyButtons.forEach((button) => {
-			// Remove existing listeners
-			button.removeEventListener('click', this.handleCopyButtonClick);
-			
-			// Add our custom handler
-			button.addEventListener('click', this.handleCopyButtonClick.bind(this));
-		});
-	}
-
-	handleCopyButtonClick(event: MouseEvent) {
-		// Get the copy button
-		const copyButton = event.currentTarget as HTMLElement;
-		
-		// Find the associated code block
-		const codeBlock = copyButton.parentElement?.querySelector('pre code') as HTMLElement;
-		if (!codeBlock) return;
-		
-		// Get the text content from the code block
-		const textContent = codeBlock.textContent || '';
-		
-		// Copy to clipboard
-		navigator.clipboard.writeText(textContent).then(() => {
-			// Flash the button to indicate copying
-			copyButton.addClass('success');
-			setTimeout(() => copyButton.removeClass('success'), 1000);
-		});
-		
-		// Prevent the default copying behavior
-		event.preventDefault();
-		event.stopPropagation();
-	}
-
-	processVariablesInElement(element: Element) {
-		// Skip elements that are within code blocks
-		if (element.closest('pre code')) return;
-
-		// Process all text nodes within the element
-		const walker = document.createTreeWalker(
-			element,
-			NodeFilter.SHOW_TEXT,
-			null
-		);
-
-		let node: Text | null;
-		const nodesToReplace: { node: Text; newContent: string }[] = [];
-
-		while ((node = walker.nextNode() as Text)) {
-			const text = node.textContent || '';
-			const startDelimiter = this.settings.variableDelimiters.start;
-			const endDelimiter = this.settings.variableDelimiters.end;
-			const regex = new RegExp(`${startDelimiter}(.*?)${endDelimiter}`, 'g');
-			
-			let modified = false;
-			let newText = text;
-
-			[...text.matchAll(regex)].forEach((match) => {
-				const variable = match[1];
-				const value = this.vaultProperties.getProperty(variable);
-				if (value !== undefined) {
-					const stringValue = this.stringifyValue(value);
-					const displayValue = this.settings.highlightDynamicVariables 
-						? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor} !important">${stringValue}</span>`
-						: stringValue;
-					newText = newText.replace(match[0], displayValue);
-					modified = true;
-				}
-			});
-
-			if (modified) {
-				nodesToReplace.push({ node, newContent: newText });
-			}
-		}
-
-		// Apply all replacements
-		nodesToReplace.forEach(({ node, newContent }) => {
-			const tempDiv = document.createElement('div');
-			tempDiv.innerHTML = newContent;
-			const fragment = document.createDocumentFragment();
-			while (tempDiv.firstChild) {
-				fragment.appendChild(tempDiv.firstChild);
-			}
-			node.parentNode?.replaceChild(fragment, node);
-		});
-	}
-
-	processVariablesInCodeBlock(codeBlock: HTMLElement) {
-		const text = codeBlock.textContent || '';
-		const startDelimiter = this.settings.variableDelimiters.start;
-		const endDelimiter = this.settings.variableDelimiters.end;
-		const regex = new RegExp(`${startDelimiter}(.*?)${endDelimiter}`, 'g');
-		
-		// Store original content if not already stored
-		if (!codeBlock.hasAttribute('data-original-content')) {
-			codeBlock.setAttribute('data-original-content', text);
-		}
-		
-		// Extract variables
-		const variables: string[] = [];
-		[...text.matchAll(regex)].forEach((match) => {
-			variables.push(match[1]);
-		});
-		
-		// Replace variables with their values
-		let newText = text;
-		variables.forEach((variable) => {
-			const value = this.vaultProperties.getProperty(variable);
-			if (value !== undefined) {
-				const stringValue = this.stringifyValue(value);
-				newText = newText.replace(
-					new RegExp(`${startDelimiter}${variable}${endDelimiter}`, 'g'),
-					stringValue
-				);
-			}
-		});
-		
-		// Update the code block content
-		codeBlock.textContent = newText;
-		
-		// Add a data attribute to store processed content for copying
-		codeBlock.setAttribute('data-processed-content', newText);
 	}
 
 	refreshView(file: TFile) {
