@@ -176,27 +176,42 @@ export default class LiveVariables extends Plugin {
 		// Update code blocks
 		const codeBlocks = view.contentEl.querySelectorAll('pre code');
 		codeBlocks.forEach((codeBlock) => {
-			const originalCode = codeBlock.getAttribute('data-original-code');
-			if (originalCode) {
-				const variables = JSON.parse(codeBlock.getAttribute('data-variables') || '[]');
-				if (variables.length > 0) {
-					let displayCode = originalCode;
-					variables.forEach((variable: string) => {
-						const value = this.vaultProperties.getProperty(variable);
-						if (value !== undefined) {
-							const stringValue = this.stringifyValue(value);
-							const displayValue = this.settings.highlightDynamicVariables 
-								? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor} !important">${stringValue}</span>`
-								: stringValue;
-							displayCode = displayCode.replace(
-								new RegExp(`${this.settings.variableDelimiters.start}${variable}${this.settings.variableDelimiters.end}`, 'g'),
-								displayValue
-							);
-						}
-					});
-					codeBlock.innerHTML = displayCode;
-				}
+			const originalCode = codeBlock.getAttribute('data-original-code') || codeBlock.textContent || '';
+			const variables = JSON.parse(codeBlock.getAttribute('data-variables') || '[]');
+			
+			// Store original code if not already stored
+			if (!codeBlock.getAttribute('data-original-code')) {
+				codeBlock.setAttribute('data-original-code', originalCode);
 			}
+			
+			if (variables.length > 0) {
+				let displayCode = originalCode;
+				variables.forEach((variable: string) => {
+					const value = this.vaultProperties.getProperty(variable);
+					if (value !== undefined) {
+						const stringValue = this.stringifyValue(value);
+						const displayValue = this.settings.highlightDynamicVariables 
+							? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor} !important">${stringValue}</span>`
+							: stringValue;
+						displayCode = displayCode.replace(
+							new RegExp(`${this.settings.variableDelimiters.start}${variable}${this.settings.variableDelimiters.end}`, 'g'),
+							displayValue
+						);
+					}
+				});
+				codeBlock.innerHTML = displayCode;
+			}
+		});
+
+		// Add copy event listener to code blocks
+		codeBlocks.forEach((codeBlock) => {
+			codeBlock.addEventListener('copy', (e: ClipboardEvent) => {
+				const originalCode = codeBlock.getAttribute('data-original-code');
+				if (originalCode) {
+					e.clipboardData?.setData('text/plain', originalCode);
+					e.preventDefault();
+				}
+			});
 		});
 
 		// Update all spans with variables
