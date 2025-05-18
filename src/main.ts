@@ -97,25 +97,20 @@ export default class LiveVariables extends Plugin {
 						e.preventDefault();
 						e.stopPropagation();
 
-						// Get all text nodes in the code block
-						const textNodes = Array.from(codeBlock.childNodes)
-							.filter(node => node.nodeType === Node.TEXT_NODE || node.nodeType === Node.ELEMENT_NODE)
-							.map(node => {
-								if (node.nodeType === Node.TEXT_NODE) {
-									return node.textContent || '';
-								} else {
-									return (node as HTMLElement).textContent || '';
-								}
-							})
-							.join('');
+						// Get the raw text content
+						const rawText = codeBlock.textContent || '';
+						
+						// Split into lines and clean each line
+						const lines = rawText.split('\n');
+						const cleanedLines = lines.map(line => {
+							// Remove line numbers and any leading/trailing whitespace
+							return line.replace(/^\d+\s*/, '').trim();
+						});
+						
+						// Join lines back together, preserving empty lines
+						const finalText = cleanedLines.join('\n');
 
-						// Split into lines and remove line numbers
-						const lines = textNodes.split('\n');
-						const codeWithoutLineNumbers = lines
-							.map(line => line.replace(/^\d+\s+/, ''))
-							.join('\n');
-
-						navigator.clipboard.writeText(codeWithoutLineNumbers);
+						navigator.clipboard.writeText(finalText);
 					});
 				}
 			});
