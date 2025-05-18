@@ -207,22 +207,29 @@ export default class LiveVariables extends Plugin {
 					}
 				});
 				codeBlock.innerHTML = displayCode;
-				
-				// Store the display code for copying
-				codeBlock.setAttribute('data-display-code', displayCode);
 			}
 		});
 
 		// Add copy event listener to code blocks
 		codeBlocks.forEach((codeBlock) => {
 			codeBlock.addEventListener('copy', (e: ClipboardEvent) => {
-				const displayCode = codeBlock.getAttribute('data-display-code');
-				if (displayCode) {
-					// Remove HTML tags from the display code
-					const tempDiv = document.createElement('div');
-					tempDiv.innerHTML = displayCode;
-					const plainText = tempDiv.textContent || tempDiv.innerText || '';
-					e.clipboardData?.setData('text/plain', plainText);
+				const originalCode = codeBlock.getAttribute('data-original-code');
+				const variables = JSON.parse(codeBlock.getAttribute('data-variables') || '[]');
+				
+				if (originalCode && variables.length > 0) {
+					let displayCode = originalCode;
+					variables.forEach((variable: string) => {
+						const value = this.vaultProperties.getProperty(variable);
+						if (value !== undefined) {
+							const stringValue = this.stringifyValue(value);
+							displayCode = displayCode.replace(
+								new RegExp(`${this.settings.variableDelimiters.start}${variable}${this.settings.variableDelimiters.end}`, 'g'),
+								stringValue
+							);
+						}
+					});
+					
+					e.clipboardData?.setData('text/plain', displayCode);
 					e.preventDefault();
 				}
 			});
