@@ -5,7 +5,7 @@ const activeLeafChangeEvent = (plugin: LiveVariables) =>
 		const file = plugin.app.workspace.getActiveFile();
 		if (file) {
 			plugin.vaultProperties.updateProperties(file);
-			plugin.refreshView(file);
+			plugin.renderVariables(file);
 		}
 	});
 

@@ -115,3 +115,16 @@ If your plugin does not need CSS, delete this file.
 .dynamic-variable:hover {
 	opacity: 0.8;
 }
+
+/* Style pour les variables dans l'éditeur */
+.dynamic-variable-mark {
+	border-radius: 3px;
+	padding: 0 2px;
+	transition: background-color 0.2s ease;
+	cursor: pointer;
+}
+
+.dynamic-variable-mark:hover {
+	opacity: 0.8;
+	text-decoration: underline;
+}
