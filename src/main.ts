@@ -49,47 +49,23 @@ export default class LiveVariables extends Plugin {
 				const text = node.textContent || '';
 				const startDelimiter = this.settings.variableDelimiters.start;
 				const endDelimiter = this.settings.variableDelimiters.end;
-				const regex = new RegExp(`${this.escapeRegExp(startDelimiter)}([^${this.escapeRegExp(endDelimiter)}]+)${this.escapeRegExp(endDelimiter)}`, 'g');
+				const regex = new RegExp(`${startDelimiter}(.*?)${endDelimiter}`, 'g');
 				
 				let modified = false;
 				let newText = text;
-				
-				// Find all variable references in this text node
-				const matches = [...text.matchAll(regex)];
-				if (matches.length > 0) {
-					// Create a list of all variables to replace
-					const replacements: {fullMatch: string, variable: string, value: string}[] = [];
-					
-					matches.forEach(match => {
-						const fullMatch = match[0];
-						const variable = match[1];
-						const value = this.vaultProperties.getProperty(variable);
-						
-						if (value !== undefined) {
-							const stringValue = this.stringifyValue(value);
-							const displayValue = this.settings.highlightDynamicVariables 
-								? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor} !important">${stringValue}</span>`
-								: stringValue;
-							
-							replacements.push({
-								fullMatch,
-								variable,
-								value: displayValue
-							});
-							
-							modified = true;
-						}
-					});
-					
-					// Sort replacements by length (descending) to avoid partial replacements
-					replacements.sort((a, b) => b.fullMatch.length - a.fullMatch.length);
-					
-					// Apply all replacements
-					replacements.forEach(({ fullMatch, value }) => {
-						// Use the exact match string to avoid regex issues
-						newText = newText.split(fullMatch).join(value);
-					});
-				}
+
+				[...text.matchAll(regex)].forEach((match) => {
+					const variable = match[1];
+					const value = this.vaultProperties.getProperty(variable);
+					if (value !== undefined) {
+						const stringValue = this.stringifyValue(value);
+						const displayValue = this.settings.highlightDynamicVariables 
+							? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor} !important">${stringValue}</span>`
+							: stringValue;
+						newText = newText.replace(match[0], displayValue);
+						modified = true;
+					}
+				});
 
 				if (modified) {
 					nodesToReplace.push({ node, newContent: newText });
@@ -166,8 +142,6 @@ export default class LiveVariables extends Plugin {
 					if (view.getMode() === 'preview') {
 						view.previewMode.rerender();
 					} else {
-						// For source mode, we need to customize variable highlighting
-						this.highlightVariablesInEditorMode(editor, view);
 						view.editor.refresh();
 					}
 					
@@ -231,48 +205,29 @@ export default class LiveVariables extends Plugin {
 				const variables = codeEl.getAttribute('data-variables');
 				const originalCode = codeEl.getAttribute('data-original-code');
 				
-				if (originalCode) {
-					// This is a managed variable block, process it using same logic as updateCodeBlocksWithVariables
-					// Manually look for all variable patterns in the original code
-					const startDelimiter = this.settings.variableDelimiters.start;
-					const endDelimiter = this.settings.variableDelimiters.end;
-					const regex = new RegExp(`${this.escapeRegExp(startDelimiter)}([^${this.escapeRegExp(endDelimiter)}]+)${this.escapeRegExp(endDelimiter)}`, 'g');
+				if (originalCode && variables) {
+					// This is a managed variable block, process it
+					let variableProcessed = originalCode;
+					const variableArray = JSON.parse(variables);
 					
-					// Find all variable occurrences in the text
-					const matches = [...originalCode.matchAll(regex)];
-					const foundVars = matches.map(match => match[1]);
-					
-					if (foundVars.length > 0) {
-						let processedCodeWithVars = originalCode;
-						// First collect all variables and their values
-						const replacements: {variable: string, value: string}[] = [];
+					if (variableArray.length > 0) {
+						const startDelimiter = this.settings.variableDelimiters.start;
+						const endDelimiter = this.settings.variableDelimiters.end;
 						
-						// Create replacements for each found variable
-						foundVars.forEach(variable => {
+						variableArray.forEach((variable: string) => {
 							const value = this.vaultProperties.getProperty(variable);
 							if (value !== undefined) {
 								const stringValue = this.stringifyValue(value);
-								replacements.push({
-									variable,
-									value: stringValue
-								});
+								variableProcessed = variableProcessed.replace(
+									new RegExp(`${startDelimiter}${variable}${endDelimiter}`, 'g'),
+									stringValue
+								);
 							}
 						});
-						
-						// Sort replacements by variable name length (descending)
-						replacements.sort((a, b) => b.variable.length - a.variable.length);
-						
-						// Now apply all replacements
-						replacements.forEach(({ variable, value }) => {
-							const pattern = `${startDelimiter}${variable}${endDelimiter}`;
-							const escapedPattern = this.escapeRegExp(pattern);
-							const replaceRegex = new RegExp(escapedPattern, 'g');
-							processedCodeWithVars = processedCodeWithVars.replace(replaceRegex, value);
-						});
-						
-						// Also remove any line numbers from this processed version
-						processedText = this.processCodeText(processedCodeWithVars);
 					}
+					
+					// Also remove any line numbers from this processed version
+					processedText = this.processCodeText(variableProcessed);
 				}
 				
 				// Store the processed text for copy operations
@@ -375,47 +330,19 @@ export default class LiveVariables extends Plugin {
 				const variables = JSON.parse(codeBlock.getAttribute('data-variables') || '[]');
 				if (variables.length > 0) {
 					let displayCode = originalCode;
-					// First collect all variables and their values
-					const replacements: {variable: string, value: string, stringValue: string, displayValue: string}[] = [];
-					
-					// Manually look for all variable patterns in the original code
-					const startDelimiter = this.settings.variableDelimiters.start;
-					const endDelimiter = this.settings.variableDelimiters.end;
-					const regex = new RegExp(`${this.escapeRegExp(startDelimiter)}([^${this.escapeRegExp(endDelimiter)}]+)${this.escapeRegExp(endDelimiter)}`, 'g');
-					
-					// Find all variable occurrences in the text
-					const matches = [...originalCode.matchAll(regex)];
-					const foundVars = matches.map(match => match[1]);
-					
-					// Create replacements for each found variable
-					foundVars.forEach(variable => {
+					variables.forEach((variable: string) => {
 						const value = this.vaultProperties.getProperty(variable);
 						if (value !== undefined) {
 							const stringValue = this.stringifyValue(value);
 							const displayValue = this.settings.highlightDynamicVariables 
 								? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor} !important">${stringValue}</span>`
 								: stringValue;
-							
-							replacements.push({
-								variable,
-								value: value?.toString() || '',
-								stringValue,
+							displayCode = displayCode.replace(
+								new RegExp(`${this.settings.variableDelimiters.start}${variable}${this.settings.variableDelimiters.end}`, 'g'),
 								displayValue
-							});
+							);
 						}
 					});
-					
-					// Sort replacements by variable name length (descending) to handle case where variables contain other variables
-					replacements.sort((a, b) => b.variable.length - a.variable.length);
-					
-					// Now apply all replacements
-					replacements.forEach(({ variable, displayValue }) => {
-						const pattern = `${startDelimiter}${variable}${endDelimiter}`;
-						const escapedPattern = this.escapeRegExp(pattern);
-						const replaceRegex = new RegExp(escapedPattern, 'g');
-						displayCode = displayCode.replace(replaceRegex, displayValue);
-					});
-					
 					codeBlock.innerHTML = displayCode;
 				}
 			}
@@ -462,16 +389,12 @@ export default class LiveVariables extends Plugin {
 			
 			codeBlocks.forEach((codeBlock) => {
 				const originalCode = codeBlock.getAttribute('data-original-code') || codeBlock.textContent || '';
+				const variables = JSON.parse(codeBlock.getAttribute('data-variables') || '[]');
 				
-				// Manually look for variables in the code
-				const startDelimiter = this.settings.variableDelimiters.start;
-				const endDelimiter = this.settings.variableDelimiters.end;
-				const regex = new RegExp(`${this.escapeRegExp(startDelimiter)}([^${this.escapeRegExp(endDelimiter)}]+)${this.escapeRegExp(endDelimiter)}`, 'g');
-				
-				// Find all variable occurrences in the text
-				const matches = [...originalCode.matchAll(regex)];
-				
-				if (matches.length > 0) {
+				if (variables.length > 0) {
+					const startDelimiter = this.settings.variableDelimiters.start;
+					const endDelimiter = this.settings.variableDelimiters.end;
+					
 					// Create a temporary container to hold the code
 					const tempContainer = document.createElement('div');
 					tempContainer.innerHTML = codeBlock.innerHTML;
@@ -483,41 +406,20 @@ export default class LiveVariables extends Plugin {
 						null
 					);
 					
-					// Prepare replacements
-					const replacements: {variable: string, fullMatch: string, value: string}[] = [];
-					
-					matches.forEach(match => {
-						const fullMatch = match[0];
-						const variable = match[1];
-						const value = this.vaultProperties.getProperty(variable);
-						if (value !== undefined) {
-							replacements.push({
-								variable,
-								fullMatch,
-								value: this.stringifyValue(value)
-							});
-						}
-					});
-					
-					// Sort replacements by length (descending) to avoid partial replacements
-					replacements.sort((a, b) => b.fullMatch.length - a.fullMatch.length);
-					
-					// Process each text node
 					let node: Text | null;
 					while ((node = walker.nextNode() as Text)) {
 						let text = node.textContent || '';
 						let modified = false;
 						
-						// Apply all replacements to this text node
-						replacements.forEach(({ fullMatch, value }) => {
-							// If the text contains this variable, replace it
-							if (text.includes(fullMatch)) {
-								const displayValue = this.settings.highlightDynamicVariables 
-									? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor} !important">${value}</span>`
-									: value;
-								
-								text = text.split(fullMatch).join(displayValue);
-								modified = true;
+						variables.forEach((variable: string) => {
+							const value = this.vaultProperties.getProperty(variable);
+							if (value !== undefined) {
+								const regex = new RegExp(`${startDelimiter}${variable}${endDelimiter}`, 'g');
+								const newText = text.replace(regex, this.stringifyValue(value));
+								if (newText !== text) {
+									text = newText;
+									modified = true;
+								}
 							}
 						});
 						
@@ -530,11 +432,6 @@ export default class LiveVariables extends Plugin {
 					codeBlock.innerHTML = tempContainer.innerHTML;
 				}
 			});
-			
-			// In edit mode, ensure text and variables are correctly highlighted
-			if (view.getMode() === 'source') {
-				this.highlightVariablesInEditorMode(view.editor, view);
-			}
 		}
 	}
 
@@ -668,53 +565,5 @@ export default class LiveVariables extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
-	}
-
-	// Helper to escape special regex characters
-	escapeRegExp(string: string): string {
-		return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-	}
-
-	// New method to highlight variables in editor mode
-	highlightVariablesInEditorMode(editor: any, view: MarkdownView) {
-		// For editor mode, we need to use CodeMirror's marking functionality
-		if (!this.settings.highlightDynamicVariables) return;
-		
-		// Clear existing marks
-		editor.getAllMarks().forEach((mark: any) => {
-			if (mark.className === 'dynamic-variable-mark') {
-				mark.clear();
-			}
-		});
-		
-		// Only proceed if highlighting is enabled
-		if (!this.settings.highlightDynamicVariables) return;
-		
-		// Get document text and search for variables
-		const docText = editor.getValue();
-		const startDelimiter = this.settings.variableDelimiters.start;
-		const endDelimiter = this.settings.variableDelimiters.end;
-		const regex = new RegExp(`${this.escapeRegExp(startDelimiter)}([^${this.escapeRegExp(endDelimiter)}]+)${this.escapeRegExp(endDelimiter)}`, 'g');
-		
-		let match;
-		while ((match = regex.exec(docText)) !== null) {
-			const fullMatch = match[0];
-			const variable = match[1];
-			
-			// Check if this variable exists
-			const value = this.vaultProperties.getProperty(variable);
-			if (value === undefined) continue;
-			
-			// Find position of this match in the document
-			const startPos = editor.posFromIndex(match.index);
-			const endPos = editor.posFromIndex(match.index + fullMatch.length);
-			
-			// Mark the text with styling
-			const mark = editor.markText(startPos, endPos, {
-				className: 'dynamic-variable-mark',
-				css: `color: ${this.settings.dynamicVariableColor} !important`,
-				attributes: { title: `Value: ${this.stringifyValue(value)}` }
-			});
-		}
 	}
 }
