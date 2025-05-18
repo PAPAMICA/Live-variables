@@ -206,28 +206,39 @@ export default class LiveVariables extends Plugin {
 				const originalCode = codeEl.getAttribute('data-original-code');
 				
 				if (originalCode && variables) {
-					// This is a managed variable block, process it
-					let variableProcessed = originalCode;
+					// This is a managed variable block, process it using same logic as updateCodeBlocksWithVariables
 					const variableArray = JSON.parse(variables);
 					
 					if (variableArray.length > 0) {
-						const startDelimiter = this.settings.variableDelimiters.start;
-						const endDelimiter = this.settings.variableDelimiters.end;
+						let processedCodeWithVars = originalCode;
+						// First collect all variables and their values
+						const replacements: {variable: string, value: string}[] = [];
 						
 						variableArray.forEach((variable: string) => {
 							const value = this.vaultProperties.getProperty(variable);
 							if (value !== undefined) {
 								const stringValue = this.stringifyValue(value);
-								variableProcessed = variableProcessed.replace(
-									new RegExp(`${startDelimiter}${variable}${endDelimiter}`, 'g'),
-									stringValue
-								);
+								replacements.push({
+									variable,
+									value: stringValue
+								});
 							}
 						});
+						
+						// Sort replacements by variable name length (descending)
+						replacements.sort((a, b) => b.variable.length - a.variable.length);
+						
+						// Now apply all replacements
+						replacements.forEach(({ variable, value }) => {
+							const startDelimiter = this.settings.variableDelimiters.start;
+							const endDelimiter = this.settings.variableDelimiters.end;
+							const regex = new RegExp(this.escapeRegExp(`${startDelimiter}${variable}${endDelimiter}`), 'g');
+							processedCodeWithVars = processedCodeWithVars.replace(regex, value);
+						});
+						
+						// Also remove any line numbers from this processed version
+						processedText = this.processCodeText(processedCodeWithVars);
 					}
-					
-					// Also remove any line numbers from this processed version
-					processedText = this.processCodeText(variableProcessed);
 				}
 				
 				// Store the processed text for copy operations
@@ -330,6 +341,9 @@ export default class LiveVariables extends Plugin {
 				const variables = JSON.parse(codeBlock.getAttribute('data-variables') || '[]');
 				if (variables.length > 0) {
 					let displayCode = originalCode;
+					// First collect all variables and their values
+					const replacements: {variable: string, value: string, stringValue: string, displayValue: string}[] = [];
+					
 					variables.forEach((variable: string) => {
 						const value = this.vaultProperties.getProperty(variable);
 						if (value !== undefined) {
@@ -337,12 +351,27 @@ export default class LiveVariables extends Plugin {
 							const displayValue = this.settings.highlightDynamicVariables 
 								? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor} !important">${stringValue}</span>`
 								: stringValue;
-							displayCode = displayCode.replace(
-								new RegExp(`${this.settings.variableDelimiters.start}${variable}${this.settings.variableDelimiters.end}`, 'g'),
+							
+							replacements.push({
+								variable,
+								value: value?.toString() || '',
+								stringValue,
 								displayValue
-							);
+							});
 						}
 					});
+					
+					// Sort replacements by variable name length (descending) to handle case where variables contain other variables
+					replacements.sort((a, b) => b.variable.length - a.variable.length);
+					
+					// Now apply all replacements
+					replacements.forEach(({ variable, displayValue }) => {
+						const startDelimiter = this.settings.variableDelimiters.start;
+						const endDelimiter = this.settings.variableDelimiters.end;
+						const regex = new RegExp(this.escapeRegExp(`${startDelimiter}${variable}${endDelimiter}`), 'g');
+						displayCode = displayCode.replace(regex, displayValue);
+					});
+					
 					codeBlock.innerHTML = displayCode;
 				}
 			}
@@ -565,5 +594,10 @@ export default class LiveVariables extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+	}
+
+	// Helper to escape special regex characters
+	escapeRegExp(string: string): string {
+		return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 	}
 }
