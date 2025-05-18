@@ -60,7 +60,7 @@ export default class LiveVariables extends Plugin {
 					if (value !== undefined) {
 						const stringValue = this.stringifyValue(value);
 						const displayValue = this.settings.highlightDynamicVariables 
-							? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor}">${stringValue}</span>`
+							? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor} !important">${stringValue}</span>`
 							: stringValue;
 						newText = newText.replace(match[0], displayValue);
 						modified = true;
@@ -186,7 +186,7 @@ export default class LiveVariables extends Plugin {
 						if (value !== undefined) {
 							const stringValue = this.stringifyValue(value);
 							const displayValue = this.settings.highlightDynamicVariables 
-								? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor}">${stringValue}</span>`
+								? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor} !important">${stringValue}</span>`
 								: stringValue;
 							displayCode = displayCode.replace(
 								new RegExp(`${this.settings.variableDelimiters.start}${variable}${this.settings.variableDelimiters.end}`, 'g'),
@@ -208,7 +208,7 @@ export default class LiveVariables extends Plugin {
 				if (value !== undefined) {
 					const stringValue = this.stringifyValue(value);
 					const displayValue = this.settings.highlightDynamicVariables 
-						? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor}">${stringValue}</span>`
+						? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor} !important">${stringValue}</span>`
 						: stringValue;
 					span.innerHTML = displayValue;
 				}
