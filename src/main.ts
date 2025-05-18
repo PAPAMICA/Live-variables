@@ -202,51 +202,35 @@ export default class LiveVariables extends Plugin {
 				let processedText = this.processCodeText(originalText);
 				
 				// If the code block has variables, process them separately
-				const variables = codeEl.getAttribute('data-variables');
-				const originalCode = codeEl.getAttribute('data-original-code');
+				const originalCode = codeEl.getAttribute('data-original-code') || originalText;
 				
 				if (originalCode) {
-					// This is a managed variable block, process it using same logic as updateCodeBlocksWithVariables
-					// Manually look for all variable patterns in the original code
+					// Extract variables using the same reliable approach as updateCodeBlocksWithVariables
 					const startDelimiter = this.settings.variableDelimiters.start;
 					const endDelimiter = this.settings.variableDelimiters.end;
-					const regex = new RegExp(`${this.escapeRegExp(startDelimiter)}([^${this.escapeRegExp(endDelimiter)}]+)${this.escapeRegExp(endDelimiter)}`, 'g');
 					
-					// Find all variable occurrences in the text
-					const matches = [...originalCode.matchAll(regex)];
-					const foundVars = matches.map(match => match[1]);
+					// We need to process every variable separately
+					let processedCodeWithVars = originalCode;
 					
-					if (foundVars.length > 0) {
-						let processedCodeWithVars = originalCode;
-						// First collect all variables and their values
-						const replacements: {variable: string, value: string}[] = [];
-						
-						// Create replacements for each found variable
-						foundVars.forEach(variable => {
-							const value = this.vaultProperties.getProperty(variable);
-							if (value !== undefined) {
-								const stringValue = this.stringifyValue(value);
-								replacements.push({
-									variable,
-									value: stringValue
-								});
-							}
-						});
-						
-						// Sort replacements by variable name length (descending)
-						replacements.sort((a, b) => b.variable.length - a.variable.length);
-						
-						// Now apply all replacements
-						replacements.forEach(({ variable, value }) => {
-							const pattern = `${startDelimiter}${variable}${endDelimiter}`;
-							const escapedPattern = this.escapeRegExp(pattern);
-							const replaceRegex = new RegExp(escapedPattern, 'g');
-							processedCodeWithVars = processedCodeWithVars.replace(replaceRegex, value);
-						});
-						
-						// Also remove any line numbers from this processed version
-						processedText = this.processCodeText(processedCodeWithVars);
+					// Extract all variables from the text
+					const pattern = new RegExp(`${this.escapeRegExp(startDelimiter)}([^${this.escapeRegExp(endDelimiter)}]+)${this.escapeRegExp(endDelimiter)}`, 'g');
+					const matches = [...originalCode.matchAll(pattern)];
+					const foundVars = new Set(matches.map(match => match[1]));
+					
+					// Process each variable independently to ensure all are replaced
+					for (const variable of foundVars) {
+						const value = this.vaultProperties.getProperty(variable);
+						if (value !== undefined) {
+							const stringValue = this.stringifyValue(value);
+							
+							// Replace ALL occurrences of this exact variable
+							const exactPattern = new RegExp(this.escapeRegExp(`${startDelimiter}${variable}${endDelimiter}`), 'g');
+							processedCodeWithVars = processedCodeWithVars.replace(exactPattern, stringValue);
+						}
 					}
+					
+					// Also remove any line numbers from this processed version
+					processedText = this.processCodeText(processedCodeWithVars);
 				}
 				
 				// Store the processed text for copy operations
@@ -346,52 +330,33 @@ export default class LiveVariables extends Plugin {
 		codeBlocks.forEach((codeBlock) => {
 			const originalCode = codeBlock.getAttribute('data-original-code');
 			if (originalCode) {
-				const variables = JSON.parse(codeBlock.getAttribute('data-variables') || '[]');
-				if (variables.length > 0) {
-					let displayCode = originalCode;
-					// First collect all variables and their values
-					const replacements: {variable: string, value: string, stringValue: string, displayValue: string}[] = [];
-					
-					// Manually look for all variable patterns in the original code
-					const startDelimiter = this.settings.variableDelimiters.start;
-					const endDelimiter = this.settings.variableDelimiters.end;
-					const regex = new RegExp(`${this.escapeRegExp(startDelimiter)}([^${this.escapeRegExp(endDelimiter)}]+)${this.escapeRegExp(endDelimiter)}`, 'g');
-					
-					// Find all variable occurrences in the text
-					const matches = [...originalCode.matchAll(regex)];
-					const foundVars = matches.map(match => match[1]);
-					
-					// Create replacements for each found variable
-					foundVars.forEach(variable => {
-						const value = this.vaultProperties.getProperty(variable);
-						if (value !== undefined) {
-							const stringValue = this.stringifyValue(value);
-							const displayValue = this.settings.highlightDynamicVariables 
-								? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor} !important">${stringValue}</span>`
-								: stringValue;
-							
-							replacements.push({
-								variable,
-								value: value?.toString() || '',
-								stringValue,
-								displayValue
-							});
-						}
-					});
-					
-					// Sort replacements by variable name length (descending) to handle case where variables contain other variables
-					replacements.sort((a, b) => b.variable.length - a.variable.length);
-					
-					// Now apply all replacements
-					replacements.forEach(({ variable, displayValue }) => {
-						const pattern = `${startDelimiter}${variable}${endDelimiter}`;
-						const escapedPattern = this.escapeRegExp(pattern);
-						const replaceRegex = new RegExp(escapedPattern, 'g');
-						displayCode = displayCode.replace(replaceRegex, displayValue);
-					});
-					
-					codeBlock.innerHTML = displayCode;
+				const startDelimiter = this.settings.variableDelimiters.start;
+				const endDelimiter = this.settings.variableDelimiters.end;
+				
+				// We need to iterate through all variable matches one by one
+				let displayCode = originalCode;
+				
+				// Extract all variables from the text using a reliable approach
+				const pattern = new RegExp(`${this.escapeRegExp(startDelimiter)}([^${this.escapeRegExp(endDelimiter)}]+)${this.escapeRegExp(endDelimiter)}`, 'g');
+				const matches = [...originalCode.matchAll(pattern)];
+				const foundVars = new Set(matches.map(match => match[1]));
+				
+				// Process each variable independently
+				for (const variable of foundVars) {
+					const value = this.vaultProperties.getProperty(variable);
+					if (value !== undefined) {
+						const stringValue = this.stringifyValue(value);
+						const displayValue = this.settings.highlightDynamicVariables 
+							? `<span class="dynamic-variable" style="color: ${this.settings.dynamicVariableColor} !important">${stringValue}</span>`
+							: stringValue;
+						
+						// Replace ALL occurrences of this exact variable
+						const exactPattern = new RegExp(this.escapeRegExp(`${startDelimiter}${variable}${endDelimiter}`), 'g');
+						displayCode = displayCode.replace(exactPattern, displayValue);
+					}
 				}
+				
+				codeBlock.innerHTML = displayCode;
 			}
 		});
 
