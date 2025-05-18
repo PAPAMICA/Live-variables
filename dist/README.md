@@ -4,6 +4,10 @@
 
 🇫🇷 Une version simplifiée du plugin Live Variables pour Obsidian. Cette version conserve uniquement les fonctionnalités d'affichage, d'édition et d'insertion de variables.
 
+## Gif & Screenshots
+![demo.gif](/demo/demo.gif)
+![settings](/demo/settings.png)
+
 ## Installation
 🇬🇧
 1. Create a `live-variables-lite` folder in your `.obsidian/plugins/` directory
