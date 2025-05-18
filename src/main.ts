@@ -198,15 +198,71 @@ export default class LiveVariables extends Plugin {
 				e.preventDefault();
 				e.stopPropagation();
 				
-				// Get the rendered text content (with variables replaced)
-				let renderedText = codeEl.textContent || '';
+				// Extract only the actual code content with variables replaced but without line numbers
+				// First, check if this is a CM6 editor (has line numbers in separate spans)
+				let renderedText = '';
 				
-				// Handle specifically code blocks created by the plugin
-				// Look for the data-variables attribute to identify our special code blocks
+				// Check if the code block has variables
 				const variables = codeEl.getAttribute('data-variables');
-				if (variables) {
-					// This is a code block managed by the LiveVariables plugin
-					// We already have the rendered text in the textContent
+				
+				// Get original code if available (before variable replacement)
+				const originalCode = codeEl.getAttribute('data-original-code');
+				
+				// Different approaches based on the type of code block
+				if (originalCode && variables) {
+					// This is a code block managed by our plugin with variables
+					// We need to manually re-process the original code to replace variables
+					let processedCode = originalCode;
+					const variableArray = JSON.parse(variables);
+					
+					if (variableArray.length > 0) {
+						const startDelimiter = this.settings.variableDelimiters.start;
+						const endDelimiter = this.settings.variableDelimiters.end;
+						
+						variableArray.forEach((variable: string) => {
+							const value = this.vaultProperties.getProperty(variable);
+							if (value !== undefined) {
+								const stringValue = this.stringifyValue(value);
+								processedCode = processedCode.replace(
+									new RegExp(`${startDelimiter}${variable}${endDelimiter}`, 'g'),
+									stringValue
+								);
+							}
+						});
+					}
+					
+					renderedText = processedCode;
+				} else {
+					// Regular code block or one without variables
+					// We need to remove the line numbers if present
+					const lineNumberWrapper = codeEl.querySelector('.cm-lineNumbers');
+					
+					if (lineNumberWrapper) {
+						// This is a CM6 code block with line numbers in a separate container
+						// Extract only the code content
+						const contentLines = codeEl.querySelectorAll('.cm-line');
+						renderedText = Array.from(contentLines)
+							.map(line => line.textContent || '')
+							.join('\n');
+					} else {
+						// Simple approach: get text content and try to remove line numbers
+						// Split into lines and process
+						const text = codeEl.textContent || '';
+						const lines = text.split('\n');
+						
+						// Check if lines start with numbers followed by whitespace
+						const hasLineNumbers = lines.every(line => /^\d+\s/.test(line.trim()));
+						
+						if (hasLineNumbers) {
+							// Remove line numbers
+							renderedText = lines
+								.map(line => line.replace(/^\s*\d+\s/, ''))
+								.join('\n');
+						} else {
+							// No line numbers, use as is
+							renderedText = text;
+						}
+					}
 				}
 				
 				// Copy the rendered text to clipboard
