@@ -96,14 +96,26 @@ export default class LiveVariables extends Plugin {
 					copyButton.addEventListener('click', (e) => {
 						e.preventDefault();
 						e.stopPropagation();
-						
-						// Get the displayed text (with variable values)
-						const displayedText = codeBlock.textContent || '';
-						
-						// Remove line numbers if they exist
-						const textWithoutLineNumbers = displayedText.replace(/^\d+\s+/gm, '');
-						
-						navigator.clipboard.writeText(textWithoutLineNumbers);
+
+						// Get all text nodes in the code block
+						const textNodes = Array.from(codeBlock.childNodes)
+							.filter(node => node.nodeType === Node.TEXT_NODE || node.nodeType === Node.ELEMENT_NODE)
+							.map(node => {
+								if (node.nodeType === Node.TEXT_NODE) {
+									return node.textContent || '';
+								} else {
+									return (node as HTMLElement).textContent || '';
+								}
+							})
+							.join('');
+
+						// Split into lines and remove line numbers
+						const lines = textNodes.split('\n');
+						const codeWithoutLineNumbers = lines
+							.map(line => line.replace(/^\d+\s+/, ''))
+							.join('\n');
+
+						navigator.clipboard.writeText(codeWithoutLineNumbers);
 					});
 				}
 			});
